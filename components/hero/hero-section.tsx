@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { SplitText } from "@/components/ui/split-text";
 import { Text } from "@/components/ui/text";
+import { Wordmark } from "@/components/ui/wordmark";
 
 export function HeroSection() {
   const reducedMotion = useReducedMotion();
@@ -17,12 +18,19 @@ export function HeroSection() {
       className="relative flex min-h-screen flex-col items-center justify-center px-6 text-center"
     >
       <motion.div
+        className="flex flex-col items-center"
         initial={{ opacity: 0, y: reducedMotion ? 0 : 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.05, ease: "easeOut" }}
       >
-        <Text as="span" size="sm" tone="accent" className="tracking-[0.35em]">
-          Fr8Technologies · Space Freight Forwarder
+        <Wordmark size="lg" />
+        <Text
+          as="span"
+          size="sm"
+          tone="accent"
+          className="mt-3 tracking-[0.35em]"
+        >
+          Space Freight Forwarder
         </Text>
       </motion.div>
       <Heading as="h1" level={1} className="mt-6 max-w-4xl">

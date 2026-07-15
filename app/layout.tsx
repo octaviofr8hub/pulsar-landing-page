@@ -13,7 +13,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Fr8Technologies — El freight forwarder de la era espacial",
+  title: "Pulsar — El freight forwarder de la era espacial",
   description:
     "Logística global impulsada por IA: carga de alto valor de New York a Tokyo en horas, no semanas, sobre una red de cohetes reutilizables.",
 };

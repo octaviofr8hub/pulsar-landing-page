@@ -86,6 +86,13 @@
   backdrop-filter: blur(12px);
 }
 
+/* Halo de las letras del wordmark PULSAR */
+@utility wordmark-glow {
+  text-shadow:
+    0 0 10px color-mix(in oklab, var(--brand-400) 55%, transparent),
+    0 0 36px var(--brand-glow);
+}
+
 /* Fondo estático de respaldo cuando WebGL no está disponible */
 @utility pulsar-halo {
   background: radial-gradient(

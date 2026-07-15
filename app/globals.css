@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/* ─── Pulsar Brand Tokens ──────────────────────────────────────────────────── */
+:root {
+  /* Brand scale — azul pulsar estelar */
+  --brand-50:  #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #60a5fa;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --brand-800: #1e40af;
+  --brand-900: #1e3a8a;
+  --brand-950: #172554;
+
+  /* Space scale — negro azulado profundo */
+  --space-50:  #f0f4ff;
+  --space-100: #e0e8ff;
+  --space-200: #c7d6ff;
+  --space-300: #a5b8f8;
+  --space-400: #7a8fd4;
+  --space-500: #5566a8;
+  --space-600: #3d4b84;
+  --space-700: #2a3360;
+  --space-800: #1a2040;
+  --space-900: #0d1120;
+  --space-950: #070b14;
+
+  /* Semánticos */
+  --background: var(--space-950);
+  --foreground: #ffffff;
+  --muted: var(--space-400);
+  --border: var(--space-800);
+}
+
+@theme inline {
+  /* Colores de marca disponibles como clases Tailwind: brand-500, space-950, etc. */
+  --color-brand-50:  var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand-950: var(--brand-950);
+
+  --color-space-50:  var(--space-50);
+  --color-space-100: var(--space-100);
+  --color-space-200: var(--space-200);
+  --color-space-300: var(--space-300);
+  --color-space-400: var(--space-400);
+  --color-space-500: var(--space-500);
+  --color-space-600: var(--space-600);
+  --color-space-700: var(--space-700);
+  --color-space-800: var(--space-800);
+  --color-space-900: var(--space-900);
+  --color-space-950: var(--space-950);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted:      var(--muted);
+  --color-border:     var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

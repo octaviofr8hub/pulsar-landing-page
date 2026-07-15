@@ -1,14 +1,14 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { Rocket } from "lucide-react";
 
 import { Heading } from "@/components/ui/heading";
+import { MonoLabel } from "@/components/ui/mono-label";
 import { Text } from "@/components/ui/text";
 
 const ROUTES = [
-  { from: "New York", to: "Tokyo" },
-  { from: "New York", to: "Shanghai" },
+  { from: "New York", to: "Tokyo", eta: "6h 32m" },
+  { from: "New York", to: "Shanghai", eta: "7h 05m" },
 ] as const;
 
 export function LogisticsSection() {
@@ -19,33 +19,43 @@ export function LogisticsSection() {
       id="logistics"
       className="relative flex min-h-screen items-center justify-end px-6 md:px-16 lg:px-24"
     >
+      <div
+        className="pointer-events-none absolute inset-y-0 right-0 w-full bg-gradient-to-l from-space-950 via-space-950/85 to-transparent md:w-2/3"
+        aria-hidden="true"
+      />
       <motion.div
-        className="glass-panel max-w-xl rounded-3xl border border-space-800 p-8 text-left md:p-10 md:text-right"
-        initial={{ opacity: 0, x: reducedMotion ? 0 : 48 }}
+        className="relative max-w-xl text-left md:text-right"
+        initial={{ opacity: 0, x: reducedMotion ? 0 : 32 }}
         whileInView={{ opacity: 1, x: 0 }}
         viewport={{ once: true, amount: 0.4 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
-        <Text as="span" size="sm" tone="accent" className="tracking-[0.3em]">
-          Logística Global
-        </Text>
-        <Heading as="h2" level={2} className="mt-4">
+        <MonoLabel tone="accent">Logística Global</MonoLabel>
+        <Heading as="h2" level={2} className="mt-5">
           De New York a Tokyo
         </Heading>
-        <Text size="lg" className="mt-5">
+        <Text size="lg" className="mt-6 md:ml-auto md:max-w-lg">
           Red logística rápida, segura y sin fricciones. En horas, no en
           semanas. Monitoreo en tiempo real durante todo el tránsito orbital.
         </Text>
-        <div className="mt-8 flex flex-wrap gap-3 md:justify-end">
+
+        <div className="mt-12 border-t border-space-800">
           {ROUTES.map((route) => (
-            <span
+            <div
               key={`${route.from}-${route.to}`}
-              className="inline-flex items-center gap-2 rounded-full border border-space-700 bg-space-900/40 px-4 py-2 text-sm text-space-200"
+              className="flex items-baseline justify-between gap-6 border-b border-space-800 py-5"
             >
-              {route.from}
-              <Rocket className="size-4 text-brand-400" aria-hidden="true" />
-              {route.to}
-            </span>
+              <span className="font-display text-lg tracking-tight text-white">
+                {route.from}
+                <span className="mx-3 text-brand-400" aria-hidden="true">
+                  →
+                </span>
+                {route.to}
+              </span>
+              <span className="font-mono text-sm text-space-300">
+                {route.eta}
+              </span>
+            </div>
           ))}
         </div>
       </motion.div>

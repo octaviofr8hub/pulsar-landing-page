@@ -71,19 +71,15 @@
   --color-muted: var(--muted);
   --color-border: var(--border);
 
-  /* Tipografía de marca: Inter (texto) + Space Grotesk (display) */
+  /* Tipografía: Inter (texto), Space Grotesk (display), JetBrains Mono (dato) */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display:
     var(--font-space-grotesk), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-mono:
+    var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
 
   /* Halo de pulsar para elementos interactivos */
   --shadow-glow: 0 0 32px var(--brand-glow);
-}
-
-/* Panel de vidrio sobre la escena 3D (el borde se define con clases border-*) */
-@utility glass-panel {
-  background: color-mix(in oklab, var(--space-900) 55%, transparent);
-  backdrop-filter: blur(12px);
 }
 
 /* Halo de las letras del wordmark PULSAR */

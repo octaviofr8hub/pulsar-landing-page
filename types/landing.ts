@@ -1,6 +1,8 @@
 export interface ValuePillar {
   title: string;
   description: string;
+  /** Texto que revela el acordeón al abrirse */
+  detail: string;
 }
 
 export interface ScenePhase {

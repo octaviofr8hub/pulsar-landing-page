@@ -33,8 +33,21 @@ Colores complementarios:
 ## Tipografía
 
 - Fuente principal: **Inter** (sans-serif, cargada en el layout)
-- Fuente display (titulares hero): **Space Grotesk** o **Syne** para H1
-- Jerarquía: usa siempre los componentes `Heading` y `Text` de `components/ui/`
+- Fuente display (titulares hero): **Space Grotesk** para H1/H2 y cifras grandes
+- Fuente de dato: **JetBrains Mono** (`font-mono`) para microetiquetas, numeración y telemetría
+- Jerarquía: usa siempre los componentes `Heading`, `Text` y `MonoLabel` de `components/ui/`
+- `MonoLabel` es el **único** lugar donde se aplican mayúsculas por CSS: ahí forman parte del sistema tipográfico
+
+## Sistema editorial (cómo se componen los bloques)
+
+La marca **no usa cards**. Un bloque de contenido se define por tipografía y
+espacio, no por una caja que lo encierre:
+
+- **Reglas hairline** (`border-t border-space-800`) para separar, en vez de bordes que rodean
+- **Microetiqueta mono** arriba (`MonoLabel`), titular display debajo
+- **Numeración** `/01 /02 /03` en las listas de argumentos
+- **Cifras grandes** en `font-display` como ancla visual del dato
+- Para texto sobre la escena 3D: **scrim** (gradiente direccional a `space-950`), nunca un panel de vidrio
 
 ## Tono de voz
 
@@ -52,6 +65,21 @@ Colores complementarios:
 ## Anti-patrones (NUNCA)
 
 - Nunca `style={{ color: "#0066ff" }}` — siempre clase `text-brand-500`
-- Nunca texto en mayúsculas por CSS (`text-transform: uppercase`) sin que esté en el sistema tipográfico
+- Nunca texto en mayúsculas por CSS (`text-transform: uppercase`) fuera de `MonoLabel`
 - Nunca usar colores fuera de la escala `brand-*` / `space-*`
 - Nunca colores brillantes o saturados que rompan el mood oscuro espacial
+
+### La "card genérica" — el anti-patrón que más se cuela
+
+Esta combinación es la firma de una plantilla autogenerada y **está prohibida**:
+
+```
+glass/backdrop-blur + rounded-2xl + border + hover:border-brand-500/50
++ chip de icono (size-11 rounded-xl bg-brand-500/15)
++ grid de 4 cards idénticas
+```
+
+El delator más fuerte es el **chip de icono cuadrado con fondo tintado al 15%**.
+Si un bloque necesita jerarquía, se la da el tipo y una regla hairline — no una
+caja. Iconos: solo cuando aportan significado, nunca como decoración dentro de
+un chip.

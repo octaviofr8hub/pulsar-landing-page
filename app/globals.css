@@ -3,7 +3,7 @@
 /* ─── Pulsar Brand Tokens ──────────────────────────────────────────────────── */
 :root {
   /* Brand scale — azul pulsar estelar */
-  --brand-50:  #eff6ff;
+  --brand-50: #eff6ff;
   --brand-100: #dbeafe;
   --brand-200: #bfdbfe;
   --brand-300: #93c5fd;
@@ -16,7 +16,7 @@
   --brand-950: #172554;
 
   /* Space scale — negro azulado profundo */
-  --space-50:  #f0f4ff;
+  --space-50: #f0f4ff;
   --space-100: #e0e8ff;
   --space-200: #c7d6ff;
   --space-300: #a5b8f8;
@@ -28,6 +28,9 @@
   --space-900: #0d1120;
   --space-950: #070b14;
 
+  /* Glow de pulsar */
+  --brand-glow: color-mix(in oklab, var(--brand-500) 45%, transparent);
+
   /* Semánticos */
   --background: var(--space-950);
   --foreground: #ffffff;
@@ -37,7 +40,7 @@
 
 @theme inline {
   /* Colores de marca disponibles como clases Tailwind: brand-500, space-950, etc. */
-  --color-brand-50:  var(--brand-50);
+  --color-brand-50: var(--brand-50);
   --color-brand-100: var(--brand-100);
   --color-brand-200: var(--brand-200);
   --color-brand-300: var(--brand-300);
@@ -49,7 +52,7 @@
   --color-brand-900: var(--brand-900);
   --color-brand-950: var(--brand-950);
 
-  --color-space-50:  var(--space-50);
+  --color-space-50: var(--space-50);
   --color-space-100: var(--space-100);
   --color-space-200: var(--space-200);
   --color-space-300: var(--space-300);
@@ -61,14 +64,50 @@
   --color-space-900: var(--space-900);
   --color-space-950: var(--space-950);
 
+  --color-brand-glow: var(--brand-glow);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-muted:      var(--muted);
-  --color-border:     var(--border);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+
+  /* Tipografía de marca: Inter (texto) + Space Grotesk (display) */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    var(--font-space-grotesk), var(--font-inter), ui-sans-serif, sans-serif;
+
+  /* Halo de pulsar para elementos interactivos */
+  --shadow-glow: 0 0 32px var(--brand-glow);
+}
+
+/* Panel de vidrio sobre la escena 3D (el borde se define con clases border-*) */
+@utility glass-panel {
+  background: color-mix(in oklab, var(--space-900) 55%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+/* Fondo estático de respaldo cuando WebGL no está disponible */
+@utility pulsar-halo {
+  background: radial-gradient(
+    ellipse at 50% 38%,
+    var(--brand-950) 0%,
+    transparent 62%
+  );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: var(--brand-500);
+  color: var(--foreground);
 }

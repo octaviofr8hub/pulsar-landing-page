@@ -13,17 +13,18 @@ Pulsar es un Space Freight Forwarder. La marca hace alusión a los pulsares este
 
 Usar **siempre** las clases CSS `brand-*` definidas en `app/globals.css`. Nunca hex directos.
 
-| Token                | Uso                                      |
-|----------------------|------------------------------------------|
-| `brand-50`           | Fondos de secciones claras (raramente)   |
-| `brand-100`          | Bordes sutiles, separadores              |
-| `brand-500`          | Color de acento principal (azul pulsar)  |
-| `brand-600`          | Hover de elementos interactivos          |
-| `brand-900`          | Fondo base oscuro (casi negro espacial)  |
-| `brand-950`          | Fondo más profundo                       |
-| `brand-glow`         | Efecto glow/halo de pulsar               |
+| Token        | Uso                                     |
+| ------------ | --------------------------------------- |
+| `brand-50`   | Fondos de secciones claras (raramente)  |
+| `brand-100`  | Bordes sutiles, separadores             |
+| `brand-500`  | Color de acento principal (azul pulsar) |
+| `brand-600`  | Hover de elementos interactivos         |
+| `brand-900`  | Fondo base oscuro (casi negro espacial) |
+| `brand-950`  | Fondo más profundo                      |
+| `brand-glow` | Efecto glow/halo de pulsar              |
 
 Colores complementarios:
+
 - Fondo principal: `bg-space-950` (negro azulado profundo)
 - Texto primario: `text-white`
 - Texto secundario: `text-space-400`

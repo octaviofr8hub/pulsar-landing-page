@@ -29,14 +29,14 @@ Mostrar como un recorrido visual de extremo a extremo:
 
 ## Pilares de valor — sección "Features"
 
-| Pilar             | Descripción                                                                 |
-|-------------------|-----------------------------------------------------------------------------|
-| **Rápido**        | Horas, no semanas. Tiempos de entrega drásticamente reducidos               |
-| **Preciso**       | Datos exactos validados con IA para las mejores decisiones logísticas        |
-| **Optimizado IA** | Máximo uso del espacio volumétrico — menor costo, mayor eficiencia           |
-| **Transparente**  | Precios 100% claros desde el primer momento y tracking en tiempo real        |
-| **Confiable**     | Seguridad de grado espacial en cada etapa de la cadena de suministro         |
-| **Global**        | Un mundo, una red. Conectamos continentes optimizando recursos logísticos    |
+| Pilar             | Descripción                                                               |
+| ----------------- | ------------------------------------------------------------------------- |
+| **Rápido**        | Horas, no semanas. Tiempos de entrega drásticamente reducidos             |
+| **Preciso**       | Datos exactos validados con IA para las mejores decisiones logísticas     |
+| **Optimizado IA** | Máximo uso del espacio volumétrico — menor costo, mayor eficiencia        |
+| **Transparente**  | Precios 100% claros desde el primer momento y tracking en tiempo real     |
+| **Confiable**     | Seguridad de grado espacial en cada etapa de la cadena de suministro      |
+| **Global**        | Un mundo, una red. Conectamos continentes optimizando recursos logísticos |
 
 ## Rutas destacadas
 

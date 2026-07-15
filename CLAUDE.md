@@ -28,4 +28,3 @@ Pulsar es una landing page futurista para una empresa de logística espacial ("S
 - `kebab-case` → nombres de archivos
 - Sin hex directos en componentes: siempre clases `brand-*`
 - Sin fetch directo en componentes: siempre a través de hooks de TanStack Query
-

@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { Section, Reveal, Eyebrow, StatStrip } from "./shared";
 import { Button } from "./ui/button";
+import { GlobeCanvas } from "@/components/globe/globe-canvas";
+import { ORBITAL_ROUTES } from "@/components/network/routes";
 import {
   Select,
   SelectContent,
@@ -71,8 +73,23 @@ export function Race() {
   const [runKey, setRunKey] = useState(0);
 
   return (
-    <Section id="solucion" className="border-t border-border">
-      <div className="grid gap-12 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-center">
+    <Section id="solucion" className="overflow-hidden border-t border-border">
+      {/* planeta de fondo con arcos suborbitales (referencia imagen 2) */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[640px] translate-y-[36%] opacity-70">
+        <GlobeCanvas
+          quality="low"
+          autoSpin
+          spinSpeed={0.05}
+          routes={ORBITAL_ROUTES}
+          dpr={[1, 1.5]}
+          cameraDistance={5.2}
+          lightsPointScale={5}
+          tilt={[0.35, 0, 0.14]}
+        />
+      </div>
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-space-950 via-space-950/50 to-transparent" />
+
+      <div className="relative grid gap-12 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-center">
         <Reveal>
           <Eyebrow>La solución</Eyebrow>
           <h2

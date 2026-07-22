@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Play, ArrowRight } from "lucide-react";
 import { Button } from "./ui/button";
-import { Globe } from "./globe";
+import { GlobeCanvas } from "@/components/globe/globe-canvas";
 import { StatStrip } from "./shared";
 
 export function Hero() {
@@ -21,20 +21,29 @@ export function Hero() {
       setZoom(p);
     };
     onScroll();
-    window.addEventListener("scroll", onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return (
-    <div id="top" ref={ref} className="relative min-h-[190vh]">
+    <div id="top" ref={ref} className="relative min-h-[210vh]">
       <div className="sticky top-0 h-screen overflow-hidden">
         {/* globe layer */}
-        <div className="absolute inset-0 md:left-1/3">
-          <Globe zoom={zoom} />
+        <div className="absolute inset-0 md:left-[28%]">
+          <GlobeCanvas
+            mode="hero"
+            showMoon
+            showMars
+            zoomProgress={zoom}
+            autoSpin
+            spinSpeed={0.06}
+            showHint
+            hintLabel="Arrastra para rotar · haz scroll para viajar"
+          />
         </div>
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-space-950 via-space-950/70 to-transparent" />
 
-        <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-center px-6">
+        <div className="pointer-events-none relative mx-auto flex h-full max-w-7xl flex-col justify-center px-6">
           <motion.div
             className="max-w-xl"
             initial={{ opacity: 0, y: 30 }}
@@ -61,7 +70,7 @@ export function Hero() {
             <p className="mt-6 max-w-md text-[17px] text-muted-foreground">
               Pulsar: la logística de la civilización multiplanetaria.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="pointer-events-auto mt-8 flex flex-wrap gap-3">
               <Button
                 asChild
                 size="lg"
@@ -84,7 +93,10 @@ export function Hero() {
             </div>
           </motion.div>
 
-          <div className="absolute inset-x-6 bottom-8 mx-auto max-w-7xl">
+          <motion.div
+            className="pointer-events-auto absolute inset-x-6 bottom-8 mx-auto max-w-7xl"
+            animate={{ opacity: 1 - zoom * 2 }}
+          >
             <StatStrip
               items={[
                 { label: "Operación", value: "24/7" },
@@ -93,7 +105,7 @@ export function Hero() {
                 { label: "Capacidad flexible", value: "Bajo demanda" },
               ]}
             />
-          </div>
+          </motion.div>
         </div>
 
         <motion.div

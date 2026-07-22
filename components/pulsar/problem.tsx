@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { AlertTriangle, Ship, Lock, TrendingUp } from "lucide-react";
 import { Section, Reveal, Eyebrow, StatStrip } from "./shared";
-
-// approx equirectangular projection into a 1000x500 viewbox
-function proj(lat: number, lon: number) {
-  return { x: ((lon + 180) / 360) * 1000, y: ((90 - lat) / 180) * 500 };
-}
+import { GlobeCanvas } from "@/components/globe/globe-canvas";
+import {
+  WORLD_LAND_PATH,
+  WORLD_BORDER_PATH,
+  projectEquirectangular as proj,
+} from "@/lib/world-map-2d";
 
 const CHOKES = [
   {
@@ -63,8 +64,20 @@ export function Problem() {
   ).join(" ");
 
   return (
-    <Section id="problema" className="border-t border-border">
-      <div className="grid gap-12 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-center">
+    <Section id="problema" className="overflow-hidden border-t border-border">
+      {/* planeta ambiental en la esquina, como fondo */}
+      <div className="pointer-events-none absolute -bottom-48 -right-40 h-[620px] w-[620px] opacity-40">
+        <GlobeCanvas
+          quality="low"
+          autoSpin
+          spinSpeed={0.04}
+          dpr={[1, 1.5]}
+          lightsPointScale={5}
+          cameraDistance={5.4}
+        />
+      </div>
+
+      <div className="relative grid gap-12 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-center">
         <Reveal>
           <Eyebrow>El problema</Eyebrow>
           <h2
@@ -103,18 +116,19 @@ export function Problem() {
         <Reveal delay={0.1}>
           <div className="relative overflow-hidden rounded-2xl border border-border bg-space-900/60 p-4 backdrop-blur">
             <svg viewBox="0 0 1000 500" className="w-full">
-              {/* faint dotted world grid */}
-              {Array.from({ length: 19 }).map((_, r) =>
-                Array.from({ length: 39 }).map((_, c) => (
-                  <circle
-                    key={`${r}-${c}`}
-                    cx={c * 26 + 8}
-                    cy={r * 26 + 8}
-                    r={1.1}
-                    fill="rgba(96,165,250,0.12)"
-                  />
-                )),
-              )}
+              {/* continentes reales */}
+              <path
+                d={WORLD_LAND_PATH}
+                fillRule="evenodd"
+                fill="rgba(96,165,250,0.10)"
+              />
+              <path
+                d={WORLD_BORDER_PATH}
+                fill="none"
+                stroke="rgba(96,165,250,0.22)"
+                strokeWidth={0.6}
+              />
+
               {/* ship route (problem, dashed) */}
               <path
                 d={routePath}
@@ -122,7 +136,7 @@ export function Problem() {
                 stroke="#f43f5e"
                 strokeWidth={2.2}
                 strokeDasharray="7 6"
-                opacity={0.8}
+                opacity={0.85}
               />
               {/* animated ship */}
               <circle r={5} fill="#f87171">

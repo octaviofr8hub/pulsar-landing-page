@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   MapPin,
@@ -10,10 +10,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Section, Reveal, Eyebrow } from "./shared";
-
-function proj(lat: number, lon: number) {
-  return { x: ((lon + 180) / 360) * 1000, y: ((90 - lat) / 180) * 500 };
-}
+import { GlobeCanvas, buildSingleRoute } from "@/components/globe/globe-canvas";
+import type { GlobeHub } from "@/components/globe/types";
 
 const NODES = [
   {
@@ -60,107 +58,98 @@ const NODES = [
   },
 ];
 
+// arcos que conectan los hubs de la red
+const NODE_ARCS: [string, string][] = [
+  ["Manzanillo", "Singapur"],
+  ["Long Beach", "Róterdam"],
+  ["Veracruz", "Róterdam"],
+  ["Manzanillo", "Long Beach"],
+];
+
 export function Network() {
-  const [active, setActive] = useState(0);
-  const node = NODES[active];
+  const [activeId, setActiveId] = useState(NODES[0].name);
+  const node = NODES.find((n) => n.name === activeId) ?? NODES[0];
+
+  const hubs = useMemo<GlobeHub[]>(
+    () =>
+      NODES.map((n) => ({
+        id: n.name,
+        name: n.name,
+        coords: { lat: n.lat, lon: n.lon },
+        nearshore: n.nearshore,
+      })),
+    [],
+  );
+
+  const routes = useMemo(() => {
+    const byName = new Map(NODES.map((n) => [n.name, n]));
+    return NODE_ARCS.map(([a, b]) => {
+      const from = byName.get(a)!;
+      const to = byName.get(b)!;
+      return buildSingleRoute(
+        { lat: from.lat, lon: from.lon },
+        { lat: to.lat, lon: to.lon },
+      );
+    });
+  }, []);
 
   return (
     <Section id="red" className="border-t border-border">
-      <div className="grid gap-12 lg:grid-cols-[1fr_minmax(0,360px)] lg:items-center">
-        <Reveal>
-          <Eyebrow>La red</Eyebrow>
-          <h2
-            className="mt-5 text-foreground"
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "clamp(2rem,3.5vw,3rem)",
-              lineHeight: 1.08,
-              fontWeight: 600,
-            }}
-          >
-            Puertos espaciales frente
-            <br />a los <span className="text-pulse-cyan">grandes hubs.</span>
-          </h2>
-          <p className="mt-5 max-w-xl text-[16px] text-muted-foreground">
-            Lo mejor de dos mundos: la infraestructura de los grandes puertos y
-            la libertad del mar abierto. Sin ruido sobre ciudades, sin
-            sobrevolar a nadie.
-          </p>
+      <Reveal>
+        <Eyebrow>La red</Eyebrow>
+        <h2
+          className="mt-5 text-foreground"
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: "clamp(2rem,3.5vw,3rem)",
+            lineHeight: 1.08,
+            fontWeight: 600,
+          }}
+        >
+          Puertos espaciales frente
+          <br />a los <span className="text-pulse-cyan">grandes hubs.</span>
+        </h2>
+        <p className="mt-5 max-w-xl text-[16px] text-muted-foreground">
+          Lo mejor de dos mundos: la infraestructura de los grandes puertos y la
+          libertad del mar abierto. Sin ruido sobre ciudades, sin sobrevolar a
+          nadie.
+        </p>
+      </Reveal>
 
-          <div className="relative mt-8 overflow-hidden rounded-2xl border border-border bg-space-900/60 p-4">
-            <svg viewBox="0 0 1000 500" className="w-full">
-              {Array.from({ length: 19 }).map((_, r) =>
-                Array.from({ length: 39 }).map((_, c) => (
-                  <circle
-                    key={`${r}-${c}`}
-                    cx={c * 26 + 8}
-                    cy={r * 26 + 8}
-                    r={1.1}
-                    fill="rgba(96,165,250,0.1)"
-                  />
-                )),
-              )}
-              {NODES.map((n, i) => {
-                const p = proj(n.lat, n.lon);
-                const on = i === active;
-                return (
-                  <g
-                    key={n.name}
-                    className="cursor-pointer"
-                    onClick={() => setActive(i)}
-                  >
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r={on ? 18 : 11}
-                      fill={
-                        n.nearshore
-                          ? "rgba(56,189,248,0.18)"
-                          : "rgba(96,165,250,0.15)"
-                      }
-                    >
-                      <animate
-                        attributeName="r"
-                        values={`${on ? 12 : 8};${on ? 20 : 14};${on ? 12 : 8}`}
-                        dur="2.4s"
-                        repeatCount="indefinite"
-                      />
-                    </circle>
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r={on ? 6 : 4}
-                      fill={n.nearshore ? "#38bdf8" : "#60a5fa"}
-                    />
-                    <text
-                      x={p.x + 12}
-                      y={p.y + 4}
-                      fill={on ? "#eef2fb" : "#8b96b3"}
-                      fontSize="15"
-                      fontFamily="Space Grotesk"
-                    >
-                      {n.name}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-            <div className="mt-2 flex gap-4 text-[12px] text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-pulse-cyan" /> Hub
-                nearshoring MX
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-pulse-glow" />{" "}
-                Plataforma marítima
-              </span>
-            </div>
+      <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_minmax(0,360px)] lg:items-center">
+        <Reveal>
+          <div className="relative h-[440px] overflow-hidden rounded-2xl border border-border bg-space-900/40 sm:h-[520px]">
+            <GlobeCanvas
+              interactive
+              hubs={hubs}
+              activeHubId={activeId}
+              onSelectHub={setActiveId}
+              focusHubId={activeId}
+              routes={routes}
+              autoSpin
+              spinSpeed={0.03}
+              cameraDistance={6}
+              minDistance={3.6}
+              maxDistance={10}
+              showHint
+              showZoomButtons
+            />
+          </div>
+          <div className="mt-3 flex gap-4 text-[12px] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-pulse-cyan" /> Hub
+              nearshoring MX
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-pulse-glow" />{" "}
+              Plataforma marítima
+            </span>
           </div>
         </Reveal>
 
         <Reveal delay={0.1}>
           <motion.div
-            key={active}
+            key={activeId}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}

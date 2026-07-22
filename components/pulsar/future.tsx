@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { Globe2, Orbit, CalendarClock, type LucideIcon } from "lucide-react";
 import { Section, Reveal, Eyebrow } from "./shared";
 import { Slider } from "./ui/slider";
+import { OrbitDiorama } from "@/components/globe/orbit-diorama";
+import { GlobeHint } from "@/components/globe/globe-hint";
 
 const YEARS = [2026, 2030, 2032, 2035, 2040];
 const WINDOWS = [2026, 2028.2, 2030.3, 2032.5, 2034.6, 2036.8, 2039];
@@ -51,60 +53,13 @@ export function Future() {
         </Reveal>
 
         <Reveal delay={0.1}>
-          <div className="rounded-2xl border border-border bg-space-950/70 p-6">
-            <div className="relative h-72 overflow-hidden rounded-xl bg-[radial-gradient(circle_at_30%_40%,rgba(59,130,246,0.12),transparent_60%)]">
-              {/* stars */}
-              {Array.from({ length: 60 }).map((_, i) => (
-                <span
-                  key={i}
-                  className="absolute rounded-full bg-white/60"
-                  style={{
-                    width: 1.5,
-                    height: 1.5,
-                    left: `${(i * 37) % 100}%`,
-                    top: `${(i * 53) % 100}%`,
-                    opacity: 0.3 + ((i * 7) % 5) / 10,
-                  }}
-                />
-              ))}
-              {/* Earth */}
-              <div className="absolute left-6 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#1d3a6b] to-[#0a1730] shadow-[0_0_40px_rgba(59,130,246,0.4)]" />
-              {/* cislunar arc grows with time */}
-              <motion.svg
-                viewBox="0 0 500 300"
-                className="absolute inset-0 h-full w-full"
-                animate={{ opacity: 0.4 + t * 0.6 }}
-              >
-                <path
-                  d="M60 150 Q 200 20 300 90"
-                  fill="none"
-                  stroke="#60a5fa"
-                  strokeWidth={2}
-                  opacity={0.9}
-                />
-                <path
-                  d="M300 90 Q 420 140 460 240"
-                  fill="none"
-                  stroke="#e0714a"
-                  strokeWidth={2}
-                  strokeDasharray="6 7"
-                  opacity={t}
-                />
-              </motion.svg>
-              {/* Moon */}
+          <div className="rounded-2xl border border-border bg-space-950/70 p-4">
+            <div className="relative h-[360px] overflow-hidden rounded-xl bg-[radial-gradient(circle_at_35%_45%,rgba(59,130,246,0.10),transparent_65%)] sm:h-[420px]">
+              <OrbitDiorama progress={t} />
+              <GlobeHint label="Arrastra para orbitar · zoom" />
               <motion.div
-                className="absolute h-10 w-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-500"
-                animate={{ left: "58%", top: "26%", scale: 0.7 + t * 0.4 }}
-              />
-              {/* Mars */}
-              <motion.div
-                className="absolute right-4 bottom-6 h-14 w-14 rounded-full bg-gradient-to-br from-[#e0714a] to-[#7a2f18]"
-                animate={{ opacity: t, scale: 0.6 + t * 0.6 }}
-              />
-              {/* orbital alignment indicator */}
-              <motion.div
-                className="absolute right-3 top-3 rounded-full bg-[#e0714a]/20 px-2.5 py-1 text-[12px] text-[#f0a184]"
-                animate={{ opacity: t > 0.1 ? 1 : 0.3 }}
+                className="pointer-events-none absolute right-4 top-4 rounded-full bg-[#e0714a]/20 px-2.5 py-1 text-[12px] text-[#f0a184]"
+                animate={{ opacity: t > 0.1 ? 1 : 0.35 }}
               >
                 Ventana Marte · {marsWindow.toFixed(1).replace(".0", "")}
               </motion.div>

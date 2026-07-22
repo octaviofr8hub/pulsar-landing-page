@@ -50,7 +50,10 @@ export function NetworkScene({
   const spinRef = useRef<Group>(null);
   const draggingRef = useRef(false);
 
-  const focusYaw = useMemo(() => focusYawFor(selectedRouteId), [selectedRouteId]);
+  const focusYaw = useMemo(
+    () => focusYawFor(selectedRouteId),
+    [selectedRouteId],
+  );
 
   useFrame((_, delta) => {
     const spin = spinRef.current;

@@ -72,7 +72,13 @@ export function OrbitalRouteMesh({
     progressRef.current = (progressRef.current + delta * speed) % 1;
     const t = progressRef.current;
 
-    const position = orbitalArcPoint(fromVec, toVec, t, radius, route.arcHeight);
+    const position = orbitalArcPoint(
+      fromVec,
+      toVec,
+      t,
+      radius,
+      route.arcHeight,
+    );
     const ahead = orbitalArcPoint(
       fromVec,
       toVec,
@@ -90,7 +96,9 @@ export function OrbitalRouteMesh({
     const fade = smoothstep(0, 0.05, t) * (1 - smoothstep(0.95, 1, t));
     const dim = dimmed ? 0.28 : 1;
     const targetScale = ROCKET_SCALE * (active ? 1.5 : 1) * fade;
-    rocket.scale.setScalar(MathUtils.damp(rocket.scale.x, targetScale, 6, delta));
+    rocket.scale.setScalar(
+      MathUtils.damp(rocket.scale.x, targetScale, 6, delta),
+    );
 
     rocket.traverse((object) => {
       if (!(object instanceof Mesh)) {

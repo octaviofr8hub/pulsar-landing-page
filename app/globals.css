@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Neutraliza el variante `dark:` de los componentes shadcn: la marca es
+   siempre oscura (tokens en :root), así que `dark:` sólo aplicaría bajo un
+   ancestro .dark que nunca añadimos. */
+@custom-variant dark (&:is(.dark *));
+
 /* ─── Pulsar Brand Tokens ──────────────────────────────────────────────────── */
 :root {
   /* Brand scale — azul pulsar estelar */
@@ -15,7 +20,7 @@
   --brand-900: #1e3a8a;
   --brand-950: #172554;
 
-  /* Space scale — negro azulado profundo */
+  /* Space scale — negro azulado profundo (950–700 alineados al mockup) */
   --space-50: #f0f4ff;
   --space-100: #e0e8ff;
   --space-200: #c7d6ff;
@@ -23,23 +28,54 @@
   --space-400: #7a8fd4;
   --space-500: #5566a8;
   --space-600: #3d4b84;
-  --space-700: #2a3360;
-  --space-800: #1a2040;
-  --space-900: #0d1120;
-  --space-950: #070b14;
+  --space-700: #1a2340;
+  --space-800: #10162a;
+  --space-850: #0b0f1e;
+  --space-900: #080b17;
+  --space-950: #05070f;
+
+  /* Acentos pulsar (del diseño Figma Make) */
+  --pulse-blue: #3b82f6;
+  --pulse-cyan: #38bdf8;
+  --pulse-glow: #60a5fa;
+  --danger: #f43f5e;
+  --amber: #f59e0b;
 
   /* Glow de pulsar */
   --brand-glow: color-mix(in oklab, var(--brand-500) 45%, transparent);
 
-  /* Semánticos */
-  --background: var(--space-950);
-  --foreground: #ffffff;
-  --muted: var(--space-400);
-  --border: var(--space-800);
+  /* Semánticos (consumidos por los componentes shadcn del diseño) */
+  --background: #05070f;
+  --foreground: #eef2fb;
+  --card: rgba(16, 22, 42, 0.7);
+  --card-foreground: #eef2fb;
+  --popover: #0b0f1e;
+  --popover-foreground: #eef2fb;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(26, 35, 64, 0.7);
+  --secondary-foreground: #eef2fb;
+  --muted: rgba(26, 35, 64, 0.5);
+  --muted-foreground: #8b96b3;
+  --accent: rgba(59, 130, 246, 0.15);
+  --accent-foreground: #cfe0ff;
+  --destructive: #f43f5e;
+  --destructive-foreground: #ffffff;
+  --border: rgba(120, 145, 200, 0.14);
+  --input: rgba(120, 145, 200, 0.14);
+  --input-background: rgba(11, 15, 30, 0.6);
+  --switch-background: rgba(120, 145, 200, 0.3);
+  --ring: #3b82f6;
+  --chart-1: #3b82f6;
+  --chart-2: #38bdf8;
+  --chart-3: #818cf8;
+  --chart-4: #f59e0b;
+  --chart-5: #f43f5e;
+  --radius: 0.75rem;
 }
 
 @theme inline {
-  /* Colores de marca disponibles como clases Tailwind: brand-500, space-950, etc. */
+  /* Brand + space como clases Tailwind: brand-500, space-950, space-850, etc. */
   --color-brand-50: var(--brand-50);
   --color-brand-100: var(--brand-100);
   --color-brand-200: var(--brand-200);
@@ -61,22 +97,58 @@
   --color-space-600: var(--space-600);
   --color-space-700: var(--space-700);
   --color-space-800: var(--space-800);
+  --color-space-850: var(--space-850);
   --color-space-900: var(--space-900);
   --color-space-950: var(--space-950);
+
+  --color-pulse-blue: var(--pulse-blue);
+  --color-pulse-cyan: var(--pulse-cyan);
+  --color-pulse-glow: var(--pulse-glow);
+  --color-danger: var(--danger);
+  --color-amber: var(--amber);
 
   --color-brand-glow: var(--brand-glow);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 
-  /* Tipografía: Inter (texto), Space Grotesk (display), JetBrains Mono (dato) */
+  /* Tipografía: Inter (texto), Space Grotesk (display), JetBrains Mono (dato).
+     Mapea a las fuentes cargadas por next/font en el layout. */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display:
     var(--font-space-grotesk), var(--font-inter), ui-sans-serif, sans-serif;
   --font-mono:
     var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* Radios (consumidos por rounded-sm/md/lg de shadcn) */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 
   /* Halo de pulsar para elementos interactivos */
   --shadow-glow: 0 0 32px var(--brand-glow);
@@ -98,6 +170,22 @@
   );
 }
 
+/* Rejilla tenue tipo HUD/blueprint para los placeholders de los marcos */
+@utility hud-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--space-700) 24%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--space-700) 24%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 28px 28px;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
@@ -108,9 +196,18 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 ::selection {
   background: var(--brand-500);
-  color: var(--foreground);
+  color: #ffffff;
 }

@@ -12,6 +12,7 @@ import {
 import { Section, Reveal, Eyebrow } from "./shared";
 import { GlobeCanvas, buildSingleRoute } from "@/components/globe/globe-canvas";
 import type { GlobeHub } from "@/components/globe/types";
+import { useLanguage } from "@/components/i18n/use-language";
 
 const NODES = [
   {
@@ -58,7 +59,6 @@ const NODES = [
   },
 ];
 
-// arcos que conectan los hubs de la red
 const NODE_ARCS: [string, string][] = [
   ["Manzanillo", "Singapur"],
   ["Long Beach", "Róterdam"],
@@ -66,7 +66,42 @@ const NODE_ARCS: [string, string][] = [
   ["Manzanillo", "Long Beach"],
 ];
 
+const COPY = {
+  es: {
+    eyebrow: "La red",
+    titleLead: "Puertos espaciales frente",
+    titleTail: "a los ",
+    titleAccent: "grandes hubs.",
+    para: "Lo mejor de dos mundos: la infraestructura de los grandes puertos y la libertad del mar abierto. Sin ruido sobre ciudades, sin sobrevolar a nadie.",
+    legendNearshore: "Hub nearshoring MX",
+    legendPlatform: "Plataforma marítima",
+    nearshoreBadge: "Nearshoring",
+    rowCorridor: "Corredor",
+    rowCapacity: "Capacidad",
+    rowPlatform: "Plataforma",
+    platformValue: "Semisumergible · 30–60 km mar adentro",
+    hint: "Arrastra para rotar · zoom",
+  },
+  en: {
+    eyebrow: "The network",
+    titleLead: "Spaceports over",
+    titleTail: "the ",
+    titleAccent: "big hubs.",
+    para: "The best of both worlds: the infrastructure of major ports and the freedom of the open sea. No noise over cities, no overflying anyone.",
+    legendNearshore: "MX nearshoring hub",
+    legendPlatform: "Maritime platform",
+    nearshoreBadge: "Nearshoring",
+    rowCorridor: "Corridor",
+    rowCapacity: "Capacity",
+    rowPlatform: "Platform",
+    platformValue: "Semi-submersible · 30–60 km offshore",
+    hint: "Drag to rotate · zoom",
+  },
+} as const;
+
 export function Network() {
+  const { lang } = useLanguage();
+  const c = COPY[lang];
   const [activeId, setActiveId] = useState(NODES[0].name);
   const node = NODES.find((n) => n.name === activeId) ?? NODES[0];
 
@@ -96,7 +131,7 @@ export function Network() {
   return (
     <Section id="red" className="border-t border-border">
       <Reveal>
-        <Eyebrow>La red</Eyebrow>
+        <Eyebrow>{c.eyebrow}</Eyebrow>
         <h2
           className="mt-5 text-foreground"
           style={{
@@ -106,13 +141,13 @@ export function Network() {
             fontWeight: 600,
           }}
         >
-          Puertos espaciales frente
-          <br />a los <span className="text-pulse-cyan">grandes hubs.</span>
+          {c.titleLead}
+          <br />
+          {c.titleTail}
+          <span className="text-pulse-cyan">{c.titleAccent}</span>
         </h2>
         <p className="mt-5 max-w-xl text-[16px] text-muted-foreground">
-          Lo mejor de dos mundos: la infraestructura de los grandes puertos y la
-          libertad del mar abierto. Sin ruido sobre ciudades, sin sobrevolar a
-          nadie.
+          {c.para}
         </p>
       </Reveal>
 
@@ -132,17 +167,18 @@ export function Network() {
               minDistance={3.6}
               maxDistance={10}
               showHint
+              hintLabel={c.hint}
               showZoomButtons
             />
           </div>
           <div className="mt-3 flex gap-4 text-[12px] text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-pulse-cyan" /> Hub
-              nearshoring MX
+              <span className="h-2.5 w-2.5 rounded-full bg-pulse-cyan" />{" "}
+              {c.legendNearshore}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-pulse-glow" />{" "}
-              Plataforma marítima
+              {c.legendPlatform}
             </span>
           </div>
         </Reveal>
@@ -155,7 +191,6 @@ export function Network() {
             transition={{ duration: 0.4 }}
             className="overflow-hidden rounded-2xl border border-pulse-blue/30 bg-gradient-to-br from-space-800 to-space-950 p-6"
           >
-            {/* stylized semi-submersible render */}
             <div className="relative flex h-40 items-end justify-center rounded-xl bg-space-950/60">
               <div className="absolute inset-x-0 bottom-8 h-8 bg-gradient-to-t from-pulse-blue/20 to-transparent" />
               <Waves className="absolute bottom-6 left-6 h-6 w-6 text-pulse-blue/50" />
@@ -166,7 +201,7 @@ export function Network() {
               </div>
               {node.nearshore && (
                 <span className="absolute right-3 top-3 rounded-full bg-pulse-cyan/20 px-2 py-0.5 text-[11px] text-pulse-cyan">
-                  Nearshoring
+                  {c.nearshoreBadge}
                 </span>
               )}
             </div>
@@ -188,13 +223,13 @@ export function Network() {
             </div>
 
             <div className="mt-5 space-y-3 text-[14px]">
-              <Row icon={Navigation} label="Corredor" value={node.corridor} />
-              <Row icon={Gauge} label="Capacidad" value={node.cap} />
               <Row
-                icon={Waves}
-                label="Plataforma"
-                value="Semisumergible · 30–60 km mar adentro"
+                icon={Navigation}
+                label={c.rowCorridor}
+                value={node.corridor}
               />
+              <Row icon={Gauge} label={c.rowCapacity} value={node.cap} />
+              <Row icon={Waves} label={c.rowPlatform} value={c.platformValue} />
             </div>
           </motion.div>
         </Reveal>

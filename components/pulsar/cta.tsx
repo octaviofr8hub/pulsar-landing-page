@@ -6,6 +6,7 @@ import { Rocket, ArrowRight } from "lucide-react";
 import { Reveal } from "./shared";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { useLanguage } from "@/components/i18n/use-language";
 import {
   Select,
   SelectContent,
@@ -14,30 +15,80 @@ import {
   SelectValue,
 } from "./ui/select";
 
-const PROFILES = [
-  { key: "client", title: "Reserva tu primer kilogramo", sub: "Clientes" },
-  { key: "anchor", title: "Conviértete en cargador ancla", sub: "Empresas" },
-  {
-    key: "talent",
-    title: "Ayúdanos a construir la Ruta de la Seda orbital",
-    sub: "Talento",
+const COPY = {
+  es: {
+    profiles: [
+      { key: "client", title: "Reserva tu primer kilogramo", sub: "Clientes" },
+      {
+        key: "anchor",
+        title: "Conviértete en cargador ancla",
+        sub: "Empresas",
+      },
+      {
+        key: "talent",
+        title: "Ayúdanos a construir la Ruta de la Seda orbital",
+        sub: "Talento",
+      },
+    ],
+    badge: "Acceso anticipado",
+    para: "Empieza hoy en el futuro de la logística multiplanetaria. Elige tu perfil y solicita acceso.",
+    requestFor: "Solicita acceso",
+    name: "Nombre",
+    namePlaceholder: "Tu nombre",
+    email: "Correo",
+    emailPlaceholder: "tu@empresa.com",
+    company: "Empresa",
+    companyPlaceholder: "Nombre de la empresa",
+    volume: "Volumen mensual estimado",
+    submit: "Solicitar acceso",
+    disclaimer: "Sin compromiso. Responderemos en 48 h.",
+    errorToast: "Completa nombre y correo para continuar.",
+    successToast: "Solicitud enviada. Te contactaremos pronto. 🚀",
   },
-];
+  en: {
+    profiles: [
+      { key: "client", title: "Book your first kilogram", sub: "Clients" },
+      { key: "anchor", title: "Become an anchor shipper", sub: "Enterprises" },
+      {
+        key: "talent",
+        title: "Help us build the orbital Silk Road",
+        sub: "Talent",
+      },
+    ],
+    badge: "Early access",
+    para: "Start today in the future of multiplanetary logistics. Choose your profile and request access.",
+    requestFor: "Request access",
+    name: "Name",
+    namePlaceholder: "Your name",
+    email: "Email",
+    emailPlaceholder: "you@company.com",
+    company: "Company",
+    companyPlaceholder: "Company name",
+    volume: "Estimated monthly volume",
+    submit: "Request access",
+    disclaimer: "No commitment. We'll reply within 48 h.",
+    errorToast: "Enter name and email to continue.",
+    successToast: "Request sent. We'll be in touch soon. 🚀",
+  },
+} as const;
 
 export function CTA() {
+  const { lang } = useLanguage();
+  const c = COPY[lang];
   const [profile, setProfile] = useState("client");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
-  const active = PROFILES.find((p) => p.key === profile)!;
+  const active = c.profiles.find((p) => p.key === profile) ?? c.profiles[0];
+  const words = active.title.split(" ");
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email) {
-      toast.error("Completa nombre y correo para continuar.");
+      toast.error(c.errorToast);
       return;
     }
-    toast.success("Solicitud enviada. Te contactaremos pronto. 🚀");
+    toast.success(c.successToast);
     setName("");
     setEmail("");
     setCompany("");
@@ -48,7 +99,6 @@ export function CTA() {
       id="cta"
       className="relative overflow-hidden border-t border-border"
     >
-      {/* night sky with distant launch */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(59,130,246,0.25),transparent_55%)]" />
       {Array.from({ length: 80 }).map((_, i) => (
         <span
@@ -68,7 +118,7 @@ export function CTA() {
       <div className="relative mx-auto grid max-w-7xl gap-12 px-6 py-28 lg:grid-cols-2 lg:items-center">
         <Reveal>
           <span className="inline-flex items-center gap-2 rounded-full border border-pulse-blue/30 bg-pulse-blue/10 px-3 py-1 text-[13px] text-pulse-cyan">
-            <Rocket className="h-3.5 w-3.5" /> Acceso anticipado
+            <Rocket className="h-3.5 w-3.5" /> {c.badge}
           </span>
           <h2
             className="mt-5 text-foreground"
@@ -79,17 +129,14 @@ export function CTA() {
               fontWeight: 600,
             }}
           >
-            {active.title.split(" ").slice(0, -1).join(" ")}{" "}
-            <span className="text-pulse-cyan">
-              {active.title.split(" ").slice(-1)}
-            </span>
+            {words.slice(0, -1).join(" ")}{" "}
+            <span className="text-pulse-cyan">{words.slice(-1)}</span>
           </h2>
           <p className="mt-5 max-w-md text-[16px] text-muted-foreground">
-            Empieza hoy en el futuro de la logística multiplanetaria. Elige tu
-            perfil y solicita acceso.
+            {c.para}
           </p>
           <div className="mt-8 flex flex-wrap gap-2">
-            {PROFILES.map((p) => (
+            {c.profiles.map((p) => (
               <button
                 key={p.key}
                 onClick={() => setProfile(p.key)}
@@ -107,35 +154,35 @@ export function CTA() {
             className="rounded-2xl border border-pulse-blue/30 bg-space-900/80 p-7 backdrop-blur"
           >
             <div className="text-[13px] uppercase tracking-wide text-muted-foreground">
-              Solicita acceso · {active.sub}
+              {c.requestFor} · {active.sub}
             </div>
             <div className="mt-5 space-y-4">
-              <Field label="Nombre">
+              <Field label={c.name}>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Tu nombre"
+                  placeholder={c.namePlaceholder}
                   className="border-border bg-space-950/60"
                 />
               </Field>
-              <Field label="Correo">
+              <Field label={c.email}>
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@empresa.com"
+                  placeholder={c.emailPlaceholder}
                   className="border-border bg-space-950/60"
                 />
               </Field>
-              <Field label="Empresa">
+              <Field label={c.company}>
                 <Input
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
-                  placeholder="Nombre de la empresa"
+                  placeholder={c.companyPlaceholder}
                   className="border-border bg-space-950/60"
                 />
               </Field>
-              <Field label="Volumen mensual estimado">
+              <Field label={c.volume}>
                 <Select defaultValue="1-10">
                   <SelectTrigger className="border-border bg-space-950/60">
                     <SelectValue />
@@ -152,10 +199,10 @@ export function CTA() {
               type="submit"
               className="mt-6 w-full rounded-full bg-pulse-blue text-white hover:bg-pulse-blue/90"
             >
-              Solicitar acceso <ArrowRight className="ml-1 h-4 w-4" />
+              {c.submit} <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
             <p className="mt-3 text-center text-[12px] text-muted-foreground">
-              Sin compromiso. Responderemos en 48 h.
+              {c.disclaimer}
             </p>
           </form>
         </Reveal>

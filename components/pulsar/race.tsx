@@ -15,6 +15,7 @@ import { Section, Reveal, Eyebrow, StatStrip } from "./shared";
 import { Button } from "./ui/button";
 import { GlobeCanvas } from "@/components/globe/globe-canvas";
 import { ORBITAL_ROUTES } from "@/components/network/routes";
+import { useLanguage } from "@/components/i18n/use-language";
 import {
   Select,
   SelectContent,
@@ -36,45 +37,81 @@ const CITIES = [
   "Veracruz",
 ];
 
-// relative durations for the animated bars (fraction of track filled = speed)
+// base de los modos (icono, color, velocidad relativa de la barra)
 const MODES = [
-  {
-    key: "ship",
-    label: "Barco",
-    icon: Ship,
-    time: "35 días",
-    door: "35 días",
-    color: "#f43f5e",
-    speed: 0.12,
+  { key: "ship", icon: Ship, color: "#f43f5e", speed: 0.12 },
+  { key: "plane", icon: Plane, color: "#f59e0b", speed: 0.45 },
+  { key: "pulsar", icon: Rocket, color: "#38bdf8", speed: 1 },
+] as const;
+
+const COPY = {
+  es: {
+    eyebrow: "La solución",
+    h2Lead: "De días a horas no es una mejora:",
+    h2Accent: "es un cambio de categoría.",
+    para: "Elige cualquier ruta y compara tres realidades logísticas: barco, avión y Pulsar. Inmune a canales, huelgas y fronteras.",
+    stats: [
+      { label: "vuelo suborbital", value: "90 min" },
+      { label: "puerta a puerta", value: "8–16 h" },
+      { label: "sin Panamá ni Mar Rojo", value: "Sin estrechos" },
+      { label: "fuera de rutas soberanas", value: "Sin fronteras" },
+    ],
+    origin: "Origen",
+    destination: "Destino",
+    simulate: "Simular ruta",
+    modes: {
+      ship: { label: "Barco", time: "35 días", door: "35 días" },
+      plane: { label: "Avión", time: "48 h", door: "48 h" },
+      pulsar: {
+        label: "Pulsar",
+        time: "90 min",
+        door: "8–16 h puerta a puerta",
+      },
+    },
+    badge: "suborbital",
+    legend: {
+      straits: "Sin estrechos",
+      sea: "Sobre el mar",
+      sovereign: "Sobre espacio soberano",
+    },
   },
-  {
-    key: "plane",
-    label: "Avión",
-    icon: Plane,
-    time: "48 h",
-    door: "48 h",
-    color: "#f59e0b",
-    speed: 0.45,
+  en: {
+    eyebrow: "The solution",
+    h2Lead: "From days to hours isn't an upgrade:",
+    h2Accent: "it's a category shift.",
+    para: "Pick any route and compare three logistics realities: ship, plane and Pulsar. Immune to canals, strikes and borders.",
+    stats: [
+      { label: "suborbital flight", value: "90 min" },
+      { label: "door to door", value: "8–16 h" },
+      { label: "no Panama or Red Sea", value: "No straits" },
+      { label: "off sovereign routes", value: "No borders" },
+    ],
+    origin: "Origin",
+    destination: "Destination",
+    simulate: "Simulate route",
+    modes: {
+      ship: { label: "Ship", time: "35 days", door: "35 days" },
+      plane: { label: "Plane", time: "48 h", door: "48 h" },
+      pulsar: { label: "Pulsar", time: "90 min", door: "8–16 h door-to-door" },
+    },
+    badge: "suborbital",
+    legend: {
+      straits: "No straits",
+      sea: "Over the sea",
+      sovereign: "Over sovereign airspace",
+    },
   },
-  {
-    key: "pulsar",
-    label: "Pulsar",
-    icon: Rocket,
-    time: "90 min",
-    door: "8–16 h puerta a puerta",
-    color: "#38bdf8",
-    speed: 1,
-  },
-];
+} as const;
 
 export function Race() {
+  const { lang } = useLanguage();
+  const c = COPY[lang];
   const [from, setFrom] = useState("Long Beach");
   const [to, setTo] = useState("Singapur");
   const [runKey, setRunKey] = useState(0);
 
   return (
     <Section id="solucion" className="overflow-hidden border-t border-border">
-      {/* planeta de fondo con arcos suborbitales (referencia imagen 2) */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[640px] translate-y-[36%] opacity-70">
         <GlobeCanvas
           quality="low"
@@ -91,7 +128,7 @@ export function Race() {
 
       <div className="relative grid gap-12 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-center">
         <Reveal>
-          <Eyebrow>La solución</Eyebrow>
+          <Eyebrow>{c.eyebrow}</Eyebrow>
           <h2
             className="mt-5 text-foreground"
             style={{
@@ -101,23 +138,13 @@ export function Race() {
               fontWeight: 600,
             }}
           >
-            De días a horas no es una mejora:
+            {c.h2Lead}
             <br />
-            es un <span className="text-pulse-cyan">cambio de categoría.</span>
+            <span className="text-pulse-cyan">{c.h2Accent}</span>
           </h2>
-          <p className="mt-5 text-[16px] text-muted-foreground">
-            Elige cualquier ruta y compara tres realidades logísticas: barco,
-            avión y Pulsar. Inmune a canales, huelgas y fronteras.
-          </p>
+          <p className="mt-5 text-[16px] text-muted-foreground">{c.para}</p>
           <div className="mt-8">
-            <StatStrip
-              items={[
-                { label: "vuelo suborbital", value: "90 min" },
-                { label: "puerta a puerta", value: "8–16 h" },
-                { label: "sin Panamá ni Mar Rojo", value: "Sin estrechos" },
-                { label: "fuera de rutas soberanas", value: "Sin fronteras" },
-              ]}
-            />
+            <StatStrip items={[...c.stats]} />
           </div>
         </Reveal>
 
@@ -125,14 +152,14 @@ export function Race() {
           <div className="rounded-2xl border border-border bg-space-900/60 p-6 backdrop-blur">
             <div className="flex flex-wrap items-end gap-3">
               <CitySelect
-                label="Origen"
+                label={c.origin}
                 value={from}
                 onChange={setFrom}
                 exclude={to}
               />
               <ArrowRight className="mb-2.5 h-5 w-5 text-muted-foreground" />
               <CitySelect
-                label="Destino"
+                label={c.destination}
                 value={to}
                 onChange={setTo}
                 exclude={from}
@@ -141,7 +168,7 @@ export function Race() {
                 onClick={() => setRunKey((k) => k + 1)}
                 className="mb-0.5 rounded-full bg-pulse-blue text-white hover:bg-pulse-blue/90"
               >
-                <Timer className="mr-1 h-4 w-4" /> Simular ruta
+                <Timer className="mr-1 h-4 w-4" /> {c.simulate}
               </Button>
             </div>
 
@@ -149,6 +176,7 @@ export function Race() {
               {MODES.map((m) => {
                 const Icon = m.icon;
                 const hero = m.key === "pulsar";
+                const t = c.modes[m.key];
                 return (
                   <div
                     key={m.key}
@@ -157,10 +185,10 @@ export function Race() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <Icon className="h-5 w-5" style={{ color: m.color }} />
-                        <span className="text-foreground">{m.label}</span>
+                        <span className="text-foreground">{t.label}</span>
                         {hero && (
                           <span className="rounded-full bg-pulse-cyan/20 px-2 py-0.5 text-[11px] text-pulse-cyan">
-                            suborbital
+                            {c.badge}
                           </span>
                         )}
                       </div>
@@ -171,10 +199,10 @@ export function Race() {
                             color: m.color,
                           }}
                         >
-                          {m.time}
+                          {t.time}
                         </div>
                         <div className="text-[12px] text-muted-foreground">
-                          {m.door}
+                          {t.door}
                         </div>
                       </div>
                     </div>
@@ -198,14 +226,16 @@ export function Race() {
 
             <div className="mt-6 grid grid-cols-3 gap-3 text-[12px] text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <Ban className="h-3.5 w-3.5 text-pulse-cyan" /> Sin estrechos
+                <Ban className="h-3.5 w-3.5 text-pulse-cyan" />{" "}
+                {c.legend.straits}
               </span>
               <span className="flex items-center gap-1.5">
-                <Globe2 className="h-3.5 w-3.5 text-pulse-cyan" /> Sobre el mar
+                <Globe2 className="h-3.5 w-3.5 text-pulse-cyan" />{" "}
+                {c.legend.sea}
               </span>
               <span className="flex items-center gap-1.5">
-                <Rocket className="h-3.5 w-3.5 text-pulse-cyan" /> Sobre espacio
-                soberano
+                <Rocket className="h-3.5 w-3.5 text-pulse-cyan" />{" "}
+                {c.legend.sovereign}
               </span>
             </div>
           </div>
@@ -236,9 +266,9 @@ function CitySelect({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {CITIES.filter((c) => c !== exclude).map((c) => (
-            <SelectItem key={c} value={c}>
-              {c}
+          {CITIES.filter((ci) => ci !== exclude).map((ci) => (
+            <SelectItem key={ci} value={ci}>
+              {ci}
             </SelectItem>
           ))}
         </SelectContent>

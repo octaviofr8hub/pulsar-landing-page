@@ -36,16 +36,30 @@ function arcPoints(
   return pts;
 }
 
+export interface DioramaLabels {
+  terrestrial: string;
+  cislunar: string;
+  mars: string;
+}
+
+const DEFAULT_LABELS: DioramaLabels = {
+  terrestrial: "Red terrestre",
+  cislunar: "Rutas cislunares",
+  mars: "Marte · cada 26 meses",
+};
+
 interface DioramaSceneProps {
   progress: number;
   reducedMotion: boolean;
   interactive: boolean;
+  labels: DioramaLabels;
 }
 
 function DioramaScene({
   progress,
   reducedMotion,
   interactive,
+  labels,
 }: DioramaSceneProps) {
   const earthSpin = useRef<Group>(null);
   const cislunar = useMemo(
@@ -105,7 +119,7 @@ function DioramaScene({
       </group>
       <Html position={[0, -EARTH_R - 0.5, 0]} center distanceFactor={11}>
         <span className="whitespace-nowrap text-[11px] tracking-wide text-pulse-glow">
-          Red terrestre
+          {labels.terrestrial}
         </span>
       </Html>
 
@@ -125,7 +139,7 @@ function DioramaScene({
       >
         <Html position={[0, 0.65, 0]} center distanceFactor={11}>
           <span className="whitespace-nowrap text-[11px] tracking-wide text-pulse-cyan">
-            Rutas cislunares
+            {labels.cislunar}
           </span>
         </Html>
       </PlanetBody>
@@ -153,7 +167,7 @@ function DioramaScene({
       >
         <Html position={[0, 0.95, 0]} center distanceFactor={11}>
           <span className="whitespace-nowrap text-[12px] text-[#f0a184]">
-            Marte · cada 26 meses
+            {labels.mars}
           </span>
         </Html>
       </PlanetBody>
@@ -165,6 +179,7 @@ export interface OrbitDioramaProps {
   progress: number;
   interactive?: boolean;
   className?: string;
+  labels?: DioramaLabels;
 }
 
 /** Diorama interactivo Tierra–Luna–Marte para el apartado "Futuro". */
@@ -172,6 +187,7 @@ export function OrbitDiorama({
   progress,
   interactive = true,
   className = "",
+  labels = DEFAULT_LABELS,
 }: OrbitDioramaProps) {
   const mounted = useIsClient();
   const reducedMotion = useReducedMotion();
@@ -202,6 +218,7 @@ export function OrbitDiorama({
                 progress={progress}
                 reducedMotion={reducedMotion}
                 interactive={interactive}
+                labels={labels}
               />
             </Suspense>
           </Canvas>

@@ -15,10 +15,94 @@ import {
 import { Section, Reveal, Eyebrow } from "./shared";
 import { Slider } from "./ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { useLanguage } from "@/components/i18n/use-language";
 
 const ROUTES = ["MZO → YOK", "LGB → SIN", "NYC → SHA", "TYO → HAM"];
 
+const MISSIONS = [
+  { id: "PL-04", route: "MZO → YOK", pct: 72, eta: "26 min" },
+  { id: "PL-11", route: "LGB → SIN", pct: 40, eta: "48 min" },
+  { id: "PL-07", route: "NYC → SHA", pct: 91, eta: "9 min" },
+];
+
+const COPY = {
+  es: {
+    eyebrow: "La plataforma digital",
+    h2Lead: "Reservar un cohete tan fácil como ",
+    h2Accent: "pedir un courier.",
+    para: "Cotización en segundos, visibilidad total con IA y gestión por excepción.",
+    quoter: "Cotizador",
+    mass: "Masa",
+    urgency: "Urgencia",
+    route: "Ruta",
+    estPrice: "Precio estimado",
+    realtime: "en tiempo real",
+    delivery: "Entrega estimada: 46 min de vuelo · 11 h puerta a puerta",
+    tower: "Torre de control",
+    tabOverview: "Vista general",
+    tabAlerts: "Alertas",
+    readiness: "Preparación",
+    risk: "Riesgo",
+    health: "Salud",
+    activeMissions: "Misiones activas",
+    alerts: [
+      {
+        text: "Ventana meteorológica óptima · MZO",
+        time: "Hace 2 min",
+        good: true,
+      },
+      {
+        text: "Retraso aduanal resuelto en vuelo · PL-07",
+        time: "Hace 8 min",
+        good: true,
+      },
+      {
+        text: "Carga PL-11 verificada y sellada",
+        time: "Hace 14 min",
+        good: false,
+      },
+    ],
+    whatsapp: "Alertas entregadas al móvil por WhatsApp en tiempo real.",
+  },
+  en: {
+    eyebrow: "The digital platform",
+    h2Lead: "Booking a rocket as easy as ",
+    h2Accent: "ordering a courier.",
+    para: "Quote in seconds, full AI visibility and management by exception.",
+    quoter: "Quoter",
+    mass: "Mass",
+    urgency: "Urgency",
+    route: "Route",
+    estPrice: "Estimated price",
+    realtime: "real time",
+    delivery: "Estimated delivery: 46 min flight · 11 h door-to-door",
+    tower: "Control tower",
+    tabOverview: "Overview",
+    tabAlerts: "Alerts",
+    readiness: "Readiness",
+    risk: "Risk",
+    health: "Health",
+    activeMissions: "Active missions",
+    alerts: [
+      { text: "Optimal weather window · MZO", time: "2 min ago", good: true },
+      {
+        text: "Customs delay resolved in flight · PL-07",
+        time: "8 min ago",
+        good: true,
+      },
+      {
+        text: "Cargo PL-11 verified and sealed",
+        time: "14 min ago",
+        good: false,
+      },
+    ],
+    whatsapp: "Alerts delivered to your phone via WhatsApp in real time.",
+  },
+} as const;
+
 export function Platform() {
+  const { lang } = useLanguage();
+  const c = COPY[lang];
   const [mass, setMass] = useState(12);
   const [urgency, setUrgency] = useState(70);
   const [route, setRoute] = useState(0);
@@ -34,7 +118,7 @@ export function Platform() {
   return (
     <Section id="plataforma" className="border-t border-border">
       <Reveal>
-        <Eyebrow>La plataforma digital</Eyebrow>
+        <Eyebrow>{c.eyebrow}</Eyebrow>
         <h2
           className="mt-5 max-w-2xl text-foreground"
           style={{
@@ -44,12 +128,11 @@ export function Platform() {
             fontWeight: 600,
           }}
         >
-          Reservar un cohete tan fácil como{" "}
-          <span className="text-pulse-cyan">pedir un courier.</span>
+          {c.h2Lead}
+          <span className="text-pulse-cyan">{c.h2Accent}</span>
         </h2>
         <p className="mt-5 max-w-2xl text-[16px] text-muted-foreground">
-          Cotización en segundos, visibilidad total con IA y gestión por
-          excepción.
+          {c.para}
         </p>
       </Reveal>
 
@@ -58,9 +141,9 @@ export function Platform() {
           {/* quoter */}
           <div className="rounded-2xl border border-pulse-blue/30 bg-gradient-to-b from-space-800 to-space-950 p-6">
             <div className="text-[13px] uppercase tracking-wide text-muted-foreground">
-              Cotizador
+              {c.quoter}
             </div>
-            <Control label="Masa" value={`${mass} t`}>
+            <Control label={c.mass} value={`${mass} t`}>
               <Slider
                 value={[mass]}
                 min={1}
@@ -69,7 +152,7 @@ export function Platform() {
                 onValueChange={(v) => setMass(v[0])}
               />
             </Control>
-            <Control label="Urgencia" value={`${urgency}%`}>
+            <Control label={c.urgency} value={`${urgency}%`}>
               <Slider
                 value={[urgency]}
                 min={0}
@@ -79,7 +162,9 @@ export function Platform() {
               />
             </Control>
             <div className="mt-5">
-              <div className="mb-2 text-[13px] text-muted-foreground">Ruta</div>
+              <div className="mb-2 text-[13px] text-muted-foreground">
+                {c.route}
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {ROUTES.map((r, i) => (
                   <button
@@ -94,9 +179,9 @@ export function Platform() {
             </div>
             <div className="mt-6 rounded-xl border border-pulse-cyan/30 bg-pulse-cyan/10 p-4">
               <div className="flex items-center justify-between text-[13px] text-muted-foreground">
-                <span>Precio estimado</span>
+                <span>{c.estPrice}</span>
                 <span className="flex items-center gap-1 text-pulse-cyan">
-                  <Zap className="h-3.5 w-3.5" /> en tiempo real
+                  <Zap className="h-3.5 w-3.5" /> {c.realtime}
                 </span>
               </div>
               <motion.div
@@ -113,7 +198,7 @@ export function Platform() {
                 {price} <span className="text-[16px]">ZYR</span>
               </motion.div>
               <div className="mt-1 text-[12px] text-muted-foreground">
-                Entrega estimada: 46 min de vuelo · 11 h puerta a puerta
+                {c.delivery}
               </div>
             </div>
           </div>
@@ -126,11 +211,11 @@ export function Platform() {
                   style={{ fontFamily: "var(--font-display)" }}
                   className="text-foreground"
                 >
-                  Torre de control
+                  {c.tower}
                 </div>
                 <TabsList className="bg-space-950/60">
-                  <TabsTrigger value="tower">Vista general</TabsTrigger>
-                  <TabsTrigger value="alerts">Alertas</TabsTrigger>
+                  <TabsTrigger value="tower">{c.tabOverview}</TabsTrigger>
+                  <TabsTrigger value="alerts">{c.tabAlerts}</TabsTrigger>
                 </TabsList>
               </div>
 
@@ -138,49 +223,30 @@ export function Platform() {
                 <div className="grid grid-cols-3 gap-3">
                   <Score
                     icon={ShieldCheck}
-                    label="Readiness"
+                    label={c.readiness}
                     value="96"
                     trend="up"
                   />
                   <Score
                     icon={Activity}
-                    label="Risk"
+                    label={c.risk}
                     value="23"
                     trend="down"
                     tone="good"
                   />
                   <Score
                     icon={HeartPulse}
-                    label="Health"
+                    label={c.health}
                     value="98"
                     trend="up"
                   />
                 </div>
                 <div className="mt-4 rounded-xl border border-border bg-space-950/50 p-4">
                   <div className="mb-3 text-[13px] text-muted-foreground">
-                    Misiones activas
+                    {c.activeMissions}
                   </div>
                   <div className="space-y-2.5">
-                    {[
-                      {
-                        id: "PL-04",
-                        route: "MZO → YOK",
-                        pct: 72,
-                        eta: "26 min",
-                      },
-                      {
-                        id: "PL-11",
-                        route: "LGB → SIN",
-                        pct: 40,
-                        eta: "48 min",
-                      },
-                      {
-                        id: "PL-07",
-                        route: "NYC → SHA",
-                        pct: 91,
-                        eta: "9 min",
-                      },
-                    ].map((m) => (
+                    {MISSIONS.map((m) => (
                       <div key={m.id} className="flex items-center gap-3">
                         <span className="w-14 text-[13px] text-foreground">
                           {m.id}
@@ -204,34 +270,20 @@ export function Platform() {
               </TabsContent>
 
               <TabsContent value="alerts" className="mt-6 space-y-3">
-                {[
-                  {
-                    t: "Ventana meteorológica óptima · MZO",
-                    d: "Hace 2 min",
-                    tone: "good",
-                  },
-                  {
-                    t: "Retraso aduanal resuelto en vuelo · PL-07",
-                    d: "Hace 8 min",
-                    tone: "good",
-                  },
-                  {
-                    t: "Carga PL-11 verificada y sellada",
-                    d: "Hace 14 min",
-                    tone: "neutral",
-                  },
-                ].map((a) => (
+                {c.alerts.map((a) => (
                   <div
-                    key={a.t}
+                    key={a.text}
                     className="flex items-start gap-3 rounded-xl border border-border bg-space-950/50 p-4"
                   >
                     <span
-                      className={`mt-1 h-2 w-2 rounded-full ${a.tone === "good" ? "bg-pulse-cyan" : "bg-amber"}`}
+                      className={`mt-1 h-2 w-2 rounded-full ${a.good ? "bg-pulse-cyan" : "bg-amber"}`}
                     />
                     <div className="flex-1">
-                      <div className="text-[14px] text-foreground">{a.t}</div>
+                      <div className="text-[14px] text-foreground">
+                        {a.text}
+                      </div>
                       <div className="text-[12px] text-muted-foreground">
-                        {a.d}
+                        {a.time}
                       </div>
                     </div>
                     <MessageCircle className="h-4 w-4 text-pulse-cyan" />
@@ -239,7 +291,7 @@ export function Platform() {
                 ))}
                 <div className="flex items-center gap-2 rounded-xl border border-pulse-blue/30 bg-pulse-blue/10 p-3 text-[13px] text-muted-foreground">
                   <MessageCircle className="h-4 w-4 text-pulse-cyan" />
-                  Alertas entregadas al móvil por WhatsApp en tiempo real.
+                  {c.whatsapp}
                 </div>
               </TabsContent>
             </Tabs>

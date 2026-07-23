@@ -5,35 +5,77 @@ import { motion } from "framer-motion";
 import { Rocket } from "lucide-react";
 import { Section, Reveal, Eyebrow } from "./shared";
 import { Slider } from "./ui/slider";
+import { useLanguage } from "@/components/i18n/use-language";
 
+// base de las clases (dimensiones de la maqueta; el texto se traduce por índice)
 const CLASSES = [
-  {
-    key: "capsule",
-    name: "Cápsula",
-    range: "0,15 – 1 t",
-    desc: "Muestras, repuestos críticos, farma en frío.",
-    max: 1,
-    scale: 0.55,
+  { key: "capsule", max: 1, scale: 0.55 },
+  { key: "medium", max: 10, scale: 0.78 },
+  { key: "heavy", max: 100, scale: 1 },
+] as const;
+
+const COPY = {
+  es: {
+    eyebrow: "La flota",
+    titleLead: "Agnósticos al ",
+    titleAccent: "vehículo.",
+    para: "No fabricamos cohetes: contratamos los mejores. Cada kilo vuela en la unidad más eficiente, y tu carga nunca depende de un solo proveedor.",
+    classes: [
+      {
+        name: "Cápsula",
+        range: "0,15 – 1 t",
+        desc: "Muestras, repuestos críticos, farma en frío.",
+      },
+      {
+        name: "Clase media",
+        range: "3 – 10 t",
+        desc: "E-commerce urgente, electrónica, componentes.",
+      },
+      {
+        name: "Clase pesada",
+        range: "30 – 100 t",
+        desc: "Maquinaria, contenedores, carga estratégica.",
+      },
+    ],
+    recommended: "Recomendado",
+    sliderLabel: "Masa / urgencia de tu envío",
+    min: "0,15 t",
+    max: "100 t",
+    optimalPrefix: "Recomendación óptima: ",
   },
-  {
-    key: "medium",
-    name: "Clase media",
-    range: "3 – 10 t",
-    desc: "E-commerce urgente, electrónica, componentes.",
-    max: 10,
-    scale: 0.78,
+  en: {
+    eyebrow: "The fleet",
+    titleLead: "Vehicle-",
+    titleAccent: "agnostic.",
+    para: "We don't build rockets: we contract the best. Every kilo flies on the most efficient unit, and your cargo never depends on a single provider.",
+    classes: [
+      {
+        name: "Capsule",
+        range: "0.15 – 1 t",
+        desc: "Samples, critical spares, cold-chain pharma.",
+      },
+      {
+        name: "Medium class",
+        range: "3 – 10 t",
+        desc: "Urgent e-commerce, electronics, components.",
+      },
+      {
+        name: "Heavy class",
+        range: "30 – 100 t",
+        desc: "Machinery, containers, strategic cargo.",
+      },
+    ],
+    recommended: "Recommended",
+    sliderLabel: "Mass / urgency of your shipment",
+    min: "0.15 t",
+    max: "100 t",
+    optimalPrefix: "Optimal recommendation: ",
   },
-  {
-    key: "heavy",
-    name: "Clase pesada",
-    range: "30 – 100 t",
-    desc: "Maquinaria, contenedores, carga estratégica.",
-    max: 100,
-    scale: 1,
-  },
-];
+} as const;
 
 export function Fleet() {
+  const { lang } = useLanguage();
+  const c = COPY[lang];
   const [mass, setMass] = useState(8); // tons
 
   const recommended = mass <= 1 ? 0 : mass <= 10 ? 1 : 2;
@@ -41,7 +83,7 @@ export function Fleet() {
   return (
     <Section id="flota" className="border-t border-border">
       <Reveal>
-        <Eyebrow>La flota</Eyebrow>
+        <Eyebrow>{c.eyebrow}</Eyebrow>
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <h2
             className="max-w-xl text-foreground"
@@ -52,23 +94,21 @@ export function Fleet() {
               fontWeight: 600,
             }}
           >
-            Agnósticos al <span className="text-pulse-cyan">vehículo.</span>
+            {c.titleLead}
+            <span className="text-pulse-cyan">{c.titleAccent}</span>
           </h2>
-          <p className="max-w-md text-[16px] text-muted-foreground">
-            No fabricamos cohetes: contratamos los mejores. Cada kilo vuela en
-            la unidad más eficiente, y tu carga nunca depende de un solo
-            proveedor.
-          </p>
+          <p className="max-w-md text-[16px] text-muted-foreground">{c.para}</p>
         </div>
       </Reveal>
 
       <Reveal delay={0.1}>
         <div className="mt-12 grid gap-4 md:grid-cols-3">
-          {CLASSES.map((c, i) => {
+          {CLASSES.map((cls, i) => {
             const on = i === recommended;
+            const t = c.classes[i];
             return (
               <motion.div
-                key={c.key}
+                key={cls.key}
                 animate={{
                   borderColor: on
                     ? "rgba(56,189,248,0.6)"
@@ -79,12 +119,12 @@ export function Fleet() {
               >
                 {on && (
                   <span className="absolute right-4 top-4 rounded-full bg-pulse-cyan/20 px-2.5 py-1 text-[11px] text-pulse-cyan">
-                    Recomendado
+                    {c.recommended}
                   </span>
                 )}
                 <div className="flex h-44 items-end justify-center">
                   <motion.div
-                    animate={{ height: `${c.scale * 160}px` }}
+                    animate={{ height: `${cls.scale * 160}px` }}
                     className="flex w-10 flex-col items-center justify-end"
                   >
                     <div
@@ -109,11 +149,11 @@ export function Fleet() {
                     fontWeight: 600,
                   }}
                 >
-                  {c.name}
+                  {t.name}
                 </h3>
-                <div className="text-pulse-cyan">{c.range}</div>
+                <div className="text-pulse-cyan">{t.range}</div>
                 <p className="mt-2 text-center text-[14px] text-muted-foreground">
-                  {c.desc}
+                  {t.desc}
                 </p>
               </motion.div>
             );
@@ -123,7 +163,7 @@ export function Fleet() {
         <div className="mt-10 rounded-2xl border border-border bg-space-900/60 p-6">
           <div className="flex items-center justify-between">
             <span className="text-[13px] uppercase tracking-wide text-muted-foreground">
-              Masa / urgencia de tu envío
+              {c.sliderLabel}
             </span>
             <span
               style={{ fontFamily: "var(--font-display)" }}
@@ -141,13 +181,15 @@ export function Fleet() {
             onValueChange={(v) => setMass(Number(v[0].toFixed(2)))}
           />
           <div className="mt-2 flex justify-between text-[12px] text-muted-foreground">
-            <span>0,15 t</span>
-            <span>100 t</span>
+            <span>{c.min}</span>
+            <span>{c.max}</span>
           </div>
           <p className="mt-4 text-[14px] text-muted-foreground">
-            Recomendación óptima:{" "}
-            <span className="text-foreground">{CLASSES[recommended].name}</span>{" "}
-            ({CLASSES[recommended].range}).
+            {c.optimalPrefix}
+            <span className="text-foreground">
+              {c.classes[recommended].name}
+            </span>{" "}
+            ({c.classes[recommended].range}).
           </p>
         </div>
       </Reveal>

@@ -106,6 +106,63 @@ wet reflective asphalt, blue neon accents, city lights in the background
 
 ---
 
+## 1-bis) La flota — 3 clases de vehículo
+
+> **Dónde van:** `public/fleet/capsule.jpg`, `public/fleet/medium.jpg`,
+> `public/fleet/heavy.jpg`. Formato **vertical 3:4**.
+
+**CLAVE para que salgan como un set (no pendejadas):** las 3 comparten el
+**mismo hangar oscuro, misma cámara frontal ligeramente baja, mismo pad circular
+que emite luz azul desde abajo, mismo cohete blanco**. Lo ÚNICO que cambia es el
+vehículo. Genera la primera, y usa esa imagen como **referencia (image-to-image)
+
+- el mismo seed** para las otras dos. Encuadre vertical, vehículo centrado.
+
+Escena compartida (pégala en las 3):
+
+```
+inside a vast dark rocket assembly hangar, tall steel gantries and scaffolding
+faintly lit with blue accent lights in the background, polished reflective concrete
+floor, a circular landing pad glowing electric-blue from beneath the vehicle,
+straight-on slightly low camera angle, moody cinematic lighting, white spacecraft,
+photoreal, 8k --ar 3:4
+```
+
+### `capsule.jpg` — Cápsula (0,15–1 t · envíos críticos)
+
+_La MÁS PEQUEÑA. Una cápsula, NO un cohete alto._
+
+```
+[estilo base] a single small white crew capsule, gumdrop / cone shape like a
+SpaceX Crew Dragon or Orion capsule, standing on four short landing legs on the
+glowing blue pad, [escena compartida]
+```
+
+### `medium.jpg` — Clase media (3–10 t · equilibrio coste-velocidad)
+
+_Un cohete ÚNICO, esbelto, altura media._
+
+```
+[estilo base] a single slender white medium-lift rocket standing vertical on the
+glowing blue pad, one core, smooth fairing on top, medium height, [escena compartida]
+```
+
+### `heavy.jpg` — Clase pesada (30–100 t · volumen industrial)
+
+_El MÁS GRANDE: un cohete central + DOS impulsores laterales pegados._
+
+```
+[estilo base] a large white heavy-lift rocket with two strap-on side boosters
+attached to a central core (three-core cluster, Falcon Heavy / Delta IV Heavy
+style), the tallest and widest vehicle, standing vertical on the glowing blue pad,
+[escena compartida]
+```
+
+> Regla mental: **cápsula < cohete medio < cohete pesado (3 núcleos)**. Si tu IA
+> te da un cohete alto para "Cápsula", corrígela: "small capsule, not a rocket".
+
+---
+
 ## 2) Assets extra de marca (opcionales, para reusar)
 
 ### Hero / key visual — cohete despegando
@@ -116,12 +173,29 @@ ocean at night, brilliant blue-white engine plume, Earth's curvature and city
 lights faint on the horizon, epic scale, mostly negative space at the top --ar 16:9
 ```
 
-### Plataforma offshore (para "La red")
+### Fondo de la CTA — cohete despegando
+
+> **Dónde va:** guarda como `public/cta/launch.jpg` (formato horizontal, ~16:9).
+> Mientras no exista, la CTA muestra su cielo estrellado de respaldo.
+
+```
+[estilo base] a white reusable Pulsar rocket lifting off with a brilliant
+blue-white engine plume, seen over a dark planet horizon at night with faint
+city lights and clouds below, huge negative space of starfield on the left for
+text, cinematic wide shot --ar 16:9
+```
+
+### Plataforma offshore — panel de nodo de "La red"
+
+> **Dónde va:** `public/network/platform.jpg` (formato horizontal, ~16:10). Es la
+> foto que aparece en el panel "Nodo seleccionado". Mientras no exista, el panel
+> muestra un placeholder con un ancla.
 
 ```
 [estilo base] a semi-submersible offshore spaceport platform on the open ocean,
-a white rocket standing on it, "Pulsar" on the structure, glowing blue lights,
-foggy sea, cinematic wide shot at blue hour --ar 16:9
+a white reusable rocket lying/standing on the rig deck, "Pulsar" on the structure,
+glowing blue lights, calm foggy sea at blue hour, cinematic aerial three-quarter
+shot --ar 16:10
 ```
 
 > Nota: el **globo 3D, la Luna y Marte** ya son escenas WebGL en tiempo real

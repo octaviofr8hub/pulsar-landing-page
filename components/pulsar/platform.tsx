@@ -3,298 +3,704 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Activity,
+  ArrowUpDown,
+  Bell,
+  Check,
+  CircleDot,
+  Clock,
+  Filter,
+  Play,
+  Plane,
   ShieldCheck,
-  HeartPulse,
-  MessageCircle,
-  TrendingUp,
+  SlidersHorizontal,
   TrendingDown,
-  Zap,
-  type LucideIcon,
+  TrendingUp,
 } from "lucide-react";
 import { Section, Reveal, Eyebrow } from "./shared";
+import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { QuoteBox } from "./quote-box";
+import { GlobeCanvas, buildSingleRoute } from "@/components/globe/globe-canvas";
+import type { GlobeHub } from "@/components/globe/types";
 import { useLanguage } from "@/components/i18n/use-language";
 
-const ROUTES = ["MZO → YOK", "LGB → SIN", "NYC → SHA", "TYO → HAM"];
-
-const MISSIONS = [
-  { id: "PL-04", route: "MZO → YOK", pct: 72, eta: "26 min" },
-  { id: "PL-11", route: "LGB → SIN", pct: 40, eta: "48 min" },
-  { id: "PL-07", route: "NYC → SHA", pct: 91, eta: "9 min" },
+const PORTS = [
+  { value: "lgb", label: "Long Beach, USA (LGB)", lat: 33.75, lon: -118.19 },
+  { value: "sin", label: "Singapur (SIN)", lat: 1.29, lon: 103.85 },
+  { value: "zlo", label: "Manzanillo (ZLO)", lat: 19.05, lon: -104.31 },
+  { value: "rtm", label: "Róterdam (RTM)", lat: 51.95, lon: 4.14 },
 ];
+
+const MISSION_HUBS: GlobeHub[] = [
+  { id: "lgb", name: "Long Beach", coords: { lat: 33.75, lon: -118.19 } },
+  {
+    id: "zlo",
+    name: "Manzanillo",
+    coords: { lat: 19.05, lon: -104.31 },
+    nearshore: true,
+  },
+  { id: "sin", name: "Singapur", coords: { lat: 1.29, lon: 103.85 } },
+];
+
+const SCORE_ICONS = [ShieldCheck, TrendingDown, ShieldCheck, TrendingUp];
+
+const ALERT_TONE: Record<string, string> = {
+  warn: "bg-amber",
+  good: "bg-pulse-cyan",
+};
+
+const ACTIVITY_TONE: Record<string, string> = {
+  flight: "text-pulse-cyan",
+  loading: "text-amber",
+  scheduled: "text-pulse-blue",
+  done: "text-emerald-400",
+  prep: "text-muted-foreground",
+};
 
 const COPY = {
   es: {
-    eyebrow: "La plataforma digital",
+    eyebrow: "Plataforma Pulsar",
     h2Lead: "Reservar un cohete tan fácil como ",
     h2Accent: "pedir un courier.",
     para: "Cotización en segundos, visibilidad total con IA y gestión por excepción.",
+    demo: "Prueba la demo interactiva",
+    guided: "Ver recorrido guiado",
     quoter: "Cotizador",
+    quoterSub: "Simula tu envío y obtén precio en segundos.",
+    advanced: "Modo avanzado",
+    dims: "Dimensiones",
+    length: "Largo",
+    width: "Ancho",
+    height: "Alto",
     mass: "Masa",
-    urgency: "Urgencia",
+    volumetric: "Volumétrico",
     route: "Ruta",
-    estPrice: "Precio estimado",
-    realtime: "en tiempo real",
-    delivery: "Entrega estimada: 46 min de vuelo · 11 h puerta a puerta",
-    tower: "Torre de control",
+    urgency: "Urgencia",
+    urgencySteps: ["Estándar", "Prioritario", "Expedito"],
+    cargo: "Carga",
+    cargoSteps: ["Liviana", "Media", "Pesada"],
+    services: "Servicios",
+    svc: ["Seguro", "Monitoreo IA", "Embalaje"],
+    result: "Resultado",
+    optimal: "ÓPTIMA",
+    transitLabel: "Tiempo de tránsito estimado",
+    suborbital: "Suborbital",
+    priceLabel: "Precio estimado (Zayren)",
+    book: "Reservar capacidad",
+    lockPrice: "Bloquea tu precio por 15 minutos",
+    tower: "Torre de Control",
     tabOverview: "Vista general",
-    tabAlerts: "Alertas",
-    readiness: "Preparación",
-    risk: "Riesgo",
-    health: "Salud",
-    activeMissions: "Misiones activas",
-    alerts: [
+    filters: "Filtros",
+    scores: [
       {
-        text: "Ventana meteorológica óptima · MZO",
-        time: "Hace 2 min",
+        label: "Readiness",
+        value: "96",
+        qual: "Excelente",
+        trend: "↑ 4 pts",
         good: true,
       },
       {
-        text: "Retraso aduanal resuelto en vuelo · PL-07",
-        time: "Hace 8 min",
+        label: "Risk",
+        value: "23",
+        qual: "Bajo",
+        trend: "↓ 7 pts",
         good: true,
       },
       {
-        text: "Carga PL-11 verificada y sellada",
-        time: "Hace 14 min",
-        good: false,
+        label: "Health",
+        value: "98",
+        qual: "Excelente",
+        trend: "↑ 2 pts",
+        good: true,
+      },
+      {
+        label: "On-Time Performance",
+        value: "99.2%",
+        qual: "Excelente",
+        trend: "↑ 1.1%",
+        good: true,
       },
     ],
-    whatsapp: "Alertas entregadas al móvil por WhatsApp en tiempo real.",
+    activeMissions: "Misiones activas",
+    dragHint: "Arrastra · zoom",
+    legend: ["En vuelo", "Programado", "En carga"],
+    alertsTitle: "Alertas",
+    seeAll: "Ver todas",
+    alerts: [
+      {
+        text: "Viento lateral alto en LZ-2",
+        meta: "LZ-2 · 12:45 UTC",
+        tone: "warn",
+      },
+      {
+        text: "Demora en ventana de lanzamiento",
+        meta: "Misión PLS-247 · 11:32 UTC",
+        tone: "warn",
+      },
+      {
+        text: "Carga crítica completada",
+        meta: "Misión PLS-246 · 10:15 UTC",
+        tone: "good",
+      },
+    ],
+    activityTitle: "Actividad en tiempo real",
+    seeAllShort: "Ver todo",
+    activity: [
+      {
+        id: "PLS-247",
+        status: "En vuelo",
+        meta: "T+ 00:03:24",
+        tone: "flight",
+      },
+      { id: "PLS-246", status: "En carga", meta: "12%", tone: "loading" },
+      {
+        id: "PLS-245",
+        status: "Programado",
+        meta: "21 May, 09:15",
+        tone: "scheduled",
+      },
+      {
+        id: "PLS-244",
+        status: "Entregado",
+        meta: "20 May, 18:42",
+        tone: "done",
+      },
+      {
+        id: "PLS-243",
+        status: "En preparación",
+        meta: "20 May, 07:30",
+        tone: "prep",
+      },
+    ],
   },
   en: {
-    eyebrow: "The digital platform",
+    eyebrow: "Pulsar Platform",
     h2Lead: "Booking a rocket as easy as ",
     h2Accent: "ordering a courier.",
     para: "Quote in seconds, full AI visibility and management by exception.",
+    demo: "Try the interactive demo",
+    guided: "Watch the guided tour",
     quoter: "Quoter",
+    quoterSub: "Simulate your shipment and get a price in seconds.",
+    advanced: "Advanced mode",
+    dims: "Dimensions",
+    length: "Length",
+    width: "Width",
+    height: "Height",
     mass: "Mass",
-    urgency: "Urgency",
+    volumetric: "Volumetric",
     route: "Route",
-    estPrice: "Estimated price",
-    realtime: "real time",
-    delivery: "Estimated delivery: 46 min flight · 11 h door-to-door",
-    tower: "Control tower",
+    urgency: "Urgency",
+    urgencySteps: ["Standard", "Priority", "Expedited"],
+    cargo: "Load",
+    cargoSteps: ["Light", "Medium", "Heavy"],
+    services: "Services",
+    svc: ["Insurance", "AI monitoring", "Packaging"],
+    result: "Result",
+    optimal: "OPTIMAL",
+    transitLabel: "Estimated transit time",
+    suborbital: "Suborbital",
+    priceLabel: "Estimated price (Zayren)",
+    book: "Book capacity",
+    lockPrice: "Lock your price for 15 minutes",
+    tower: "Control Tower",
     tabOverview: "Overview",
-    tabAlerts: "Alerts",
-    readiness: "Readiness",
-    risk: "Risk",
-    health: "Health",
-    activeMissions: "Active missions",
-    alerts: [
-      { text: "Optimal weather window · MZO", time: "2 min ago", good: true },
+    filters: "Filters",
+    scores: [
       {
-        text: "Customs delay resolved in flight · PL-07",
-        time: "8 min ago",
+        label: "Readiness",
+        value: "96",
+        qual: "Excellent",
+        trend: "↑ 4 pts",
+        good: true,
+      },
+      { label: "Risk", value: "23", qual: "Low", trend: "↓ 7 pts", good: true },
+      {
+        label: "Health",
+        value: "98",
+        qual: "Excellent",
+        trend: "↑ 2 pts",
         good: true,
       },
       {
-        text: "Cargo PL-11 verified and sealed",
-        time: "14 min ago",
-        good: false,
+        label: "On-Time Performance",
+        value: "99.2%",
+        qual: "Excellent",
+        trend: "↑ 1.1%",
+        good: true,
       },
     ],
-    whatsapp: "Alerts delivered to your phone via WhatsApp in real time.",
+    activeMissions: "Active missions",
+    dragHint: "Drag · zoom",
+    legend: ["In flight", "Scheduled", "Loading"],
+    alertsTitle: "Alerts",
+    seeAll: "See all",
+    alerts: [
+      {
+        text: "High crosswind at LZ-2",
+        meta: "LZ-2 · 12:45 UTC",
+        tone: "warn",
+      },
+      {
+        text: "Launch window delay",
+        meta: "Mission PLS-247 · 11:32 UTC",
+        tone: "warn",
+      },
+      {
+        text: "Critical cargo completed",
+        meta: "Mission PLS-246 · 10:15 UTC",
+        tone: "good",
+      },
+    ],
+    activityTitle: "Real-time activity",
+    seeAllShort: "See all",
+    activity: [
+      {
+        id: "PLS-247",
+        status: "In flight",
+        meta: "T+ 00:03:24",
+        tone: "flight",
+      },
+      { id: "PLS-246", status: "Loading", meta: "12%", tone: "loading" },
+      {
+        id: "PLS-245",
+        status: "Scheduled",
+        meta: "May 21, 09:15",
+        tone: "scheduled",
+      },
+      {
+        id: "PLS-244",
+        status: "Delivered",
+        meta: "May 20, 18:42",
+        tone: "done",
+      },
+      { id: "PLS-243", status: "In prep", meta: "May 20, 07:30", tone: "prep" },
+    ],
   },
 } as const;
 
 export function Platform() {
   const { lang } = useLanguage();
   const c = COPY[lang];
-  const [mass, setMass] = useState(12);
-  const [urgency, setUrgency] = useState(70);
-  const [route, setRoute] = useState(0);
+  const [origin, setOrigin] = useState("lgb");
+  const [dest, setDest] = useState("sin");
+  const [urgency, setUrgency] = useState(2);
+  const [cargo, setCargo] = useState(1);
+  const [services, setServices] = useState<Set<number>>(new Set([0, 1]));
+  const [advanced, setAdvanced] = useState(true);
 
   const price = useMemo(() => {
-    const base = 1800 + mass * 55 + urgency * 9 + route * 120;
+    const base = 2100 + cargo * 260 + urgency * 420 + services.size * 90;
     return base.toLocaleString("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-  }, [mass, urgency, route]);
+  }, [cargo, urgency, services]);
+
+  const transit = ["58 min", "52 min", "46 min"][urgency];
+
+  const swap = () => {
+    setOrigin(dest);
+    setDest(origin);
+  };
+  const toggleService = (i: number) =>
+    setServices((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+
+  const routes = useMemo(
+    () => [
+      buildSingleRoute(MISSION_HUBS[0].coords, MISSION_HUBS[2].coords),
+      buildSingleRoute(MISSION_HUBS[1].coords, MISSION_HUBS[2].coords),
+    ],
+    [],
+  );
 
   return (
     <Section id="plataforma" className="border-t border-border">
-      <Reveal>
-        <Eyebrow>{c.eyebrow}</Eyebrow>
-        <h2
-          className="mt-5 max-w-2xl text-foreground"
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "clamp(2rem,3.5vw,3rem)",
-            lineHeight: 1.08,
-            fontWeight: 600,
-          }}
-        >
-          {c.h2Lead}
-          <span className="text-pulse-cyan">{c.h2Accent}</span>
-        </h2>
-        <p className="mt-5 max-w-2xl text-[16px] text-muted-foreground">
-          {c.para}
-        </p>
-      </Reveal>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,280px)_1fr] xl:grid-cols-[minmax(0,280px)_1fr_minmax(0,260px)]">
+        {/* columna de título */}
+        <Reveal>
+          <Eyebrow>{c.eyebrow}</Eyebrow>
+          <h2
+            className="mt-5 text-foreground"
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "clamp(2rem,3vw,2.8rem)",
+              lineHeight: 1.08,
+              fontWeight: 600,
+            }}
+          >
+            {c.h2Lead}
+            <span className="text-pulse-cyan">{c.h2Accent}</span>
+          </h2>
+          <p className="mt-5 text-[15px] text-muted-foreground">{c.para}</p>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row lg:flex-col">
+            <Button className="rounded-full bg-pulse-blue text-white hover:bg-pulse-blue/90">
+              {c.demo}
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-full border-border bg-white/5 text-foreground hover:bg-white/10"
+            >
+              <Play className="mr-1 h-4 w-4" /> {c.guided}
+            </Button>
+          </div>
+        </Reveal>
 
-      <Reveal delay={0.1}>
-        <div className="mt-12 grid gap-6 lg:grid-cols-[minmax(0,380px)_1fr]">
-          {/* quoter */}
-          <div className="rounded-2xl border border-pulse-blue/30 bg-gradient-to-b from-space-800 to-space-950 p-6">
-            <div className="text-[13px] uppercase tracking-wide text-muted-foreground">
-              {c.quoter}
-            </div>
-            <Control label={c.mass} value={`${mass} t`}>
-              <Slider
-                value={[mass]}
-                min={1}
-                max={100}
-                step={1}
-                onValueChange={(v) => setMass(v[0])}
-              />
-            </Control>
-            <Control label={c.urgency} value={`${urgency}%`}>
-              <Slider
-                value={[urgency]}
-                min={0}
-                max={100}
-                step={5}
-                onValueChange={(v) => setUrgency(v[0])}
-              />
-            </Control>
-            <div className="mt-5">
-              <div className="mb-2 text-[13px] text-muted-foreground">
-                {c.route}
+        {/* cotizador */}
+        <Reveal delay={0.05}>
+          <div className="rounded-2xl border border-border bg-space-900/60 p-6 backdrop-blur">
+            <div className="flex items-start justify-between">
+              <div>
+                <div
+                  className="text-foreground"
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: "1.3rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  {c.quoter}
+                </div>
+                <div className="text-[13px] text-muted-foreground">
+                  {c.quoterSub}
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {ROUTES.map((r, i) => (
-                  <button
-                    key={r}
-                    onClick={() => setRoute(i)}
-                    className={`rounded-lg border px-3 py-2 text-[13px] transition-colors ${route === i ? "border-pulse-blue bg-pulse-blue/20 text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="mt-6 rounded-xl border border-pulse-cyan/30 bg-pulse-cyan/10 p-4">
-              <div className="flex items-center justify-between text-[13px] text-muted-foreground">
-                <span>{c.estPrice}</span>
-                <span className="flex items-center gap-1 text-pulse-cyan">
-                  <Zap className="h-3.5 w-3.5" /> {c.realtime}
-                </span>
-              </div>
-              <motion.div
-                key={price}
-                initial={{ opacity: 0.4 }}
-                animate={{ opacity: 1 }}
-                className="mt-1 text-pulse-cyan"
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "2rem",
-                  fontWeight: 600,
-                }}
+              <button
+                type="button"
+                onClick={() => setAdvanced((v) => !v)}
+                className="flex items-center gap-2 text-[12px] text-muted-foreground"
               >
-                {price} <span className="text-[16px]">ZYR</span>
-              </motion.div>
-              <div className="mt-1 text-[12px] text-muted-foreground">
-                {c.delivery}
+                {c.advanced}
+                <span
+                  className={`relative h-5 w-9 rounded-full transition-colors ${advanced ? "bg-pulse-blue" : "bg-white/15"}`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${advanced ? "left-4" : "left-0.5"}`}
+                  />
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              {/* caja 3D + dimensiones */}
+              <div>
+                <div className="relative h-52 rounded-xl border border-border bg-space-950/50">
+                  <QuoteBox />
+                </div>
+                <div className="mt-3 flex items-center justify-between rounded-lg border border-border bg-space-950/40 px-3 py-2 text-[12px]">
+                  <span className="text-muted-foreground">{c.volumetric}</span>
+                  <span className="text-foreground">0.58 m³</span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
+                  {[
+                    [c.length, "120 cm"],
+                    [c.width, "80 cm"],
+                    [c.height, "60 cm"],
+                    [c.mass, "250 kg"],
+                  ].map(([k, v]) => (
+                    <div
+                      key={k}
+                      className="flex items-center justify-between rounded-lg border border-border bg-space-950/40 px-3 py-2"
+                    >
+                      <span className="text-muted-foreground">{k}</span>
+                      <span className="text-foreground">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* controles */}
+              <div className="space-y-5">
+                <div>
+                  <div className="mb-2 text-[13px] text-muted-foreground">
+                    {c.route}
+                  </div>
+                  <div className="space-y-1.5">
+                    <RouteSelect
+                      value={origin}
+                      onChange={setOrigin}
+                      exclude={dest}
+                    />
+                    <div className="flex justify-center">
+                      <button
+                        type="button"
+                        onClick={swap}
+                        aria-label="swap"
+                        className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-space-950 text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <ArrowUpDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <RouteSelect
+                      value={dest}
+                      onChange={setDest}
+                      exclude={origin}
+                    />
+                  </div>
+                </div>
+
+                <StepSlider
+                  label={c.urgency}
+                  steps={[...c.urgencySteps]}
+                  value={urgency}
+                  onChange={setUrgency}
+                />
+                <StepSlider
+                  label={c.cargo}
+                  steps={[...c.cargoSteps]}
+                  value={cargo}
+                  onChange={setCargo}
+                />
+
+                <div>
+                  <div className="mb-2 text-[13px] text-muted-foreground">
+                    {c.services}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {c.svc.map((s, i) => {
+                      const on = services.has(i);
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => toggleService(i)}
+                          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] transition-colors ${on ? "border-pulse-blue bg-pulse-blue/15 text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
+                        >
+                          <span
+                            className={`flex h-4 w-4 items-center justify-center rounded-full border ${on ? "border-pulse-cyan bg-pulse-cyan/20" : "border-border"}`}
+                          >
+                            {on && (
+                              <Check className="h-3 w-3 text-pulse-cyan" />
+                            )}
+                          </span>
+                          {s}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </Reveal>
 
-          {/* control tower dashboard */}
-          <div className="rounded-2xl border border-border bg-space-900/60 p-6">
-            <Tabs defaultValue="tower">
-              <div className="flex items-center justify-between">
-                <div
-                  style={{ fontFamily: "var(--font-display)" }}
-                  className="text-foreground"
-                >
-                  {c.tower}
-                </div>
-                <TabsList className="bg-space-950/60">
-                  <TabsTrigger value="tower">{c.tabOverview}</TabsTrigger>
-                  <TabsTrigger value="alerts">{c.tabAlerts}</TabsTrigger>
-                </TabsList>
+        {/* resultado */}
+        <Reveal delay={0.1} className="xl:col-start-3">
+          <div className="flex h-full flex-col rounded-2xl border border-pulse-blue/30 bg-gradient-to-b from-space-800 to-space-950 p-6">
+            <div className="flex items-center justify-between">
+              <span
+                className="text-foreground"
+                style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
+              >
+                {c.result}
+              </span>
+              <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] text-emerald-400">
+                {c.optimal}
+              </span>
+            </div>
+
+            <div className="mt-6 text-[13px] text-muted-foreground">
+              {c.transitLabel}
+            </div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span
+                className="text-foreground"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: "2.4rem",
+                  fontWeight: 600,
+                }}
+              >
+                {transit}
+              </span>
+              <span className="text-[13px] text-pulse-cyan">
+                {c.suborbital}
+              </span>
+            </div>
+
+            <div className="mt-6 border-t border-border pt-4 text-[13px] text-muted-foreground">
+              {c.priceLabel}
+            </div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <motion.span
+                key={price}
+                initial={{ opacity: 0.4 }}
+                animate={{ opacity: 1 }}
+                className="text-pulse-cyan"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: "1.9rem",
+                  fontWeight: 600,
+                }}
+              >
+                {price}
+              </motion.span>
+              <span className="text-[14px] text-muted-foreground">ZYR</span>
+              <span className="ml-auto rounded-full bg-emerald-500/15 px-2 py-0.5 text-[12px] text-emerald-400">
+                -4.2%
+              </span>
+            </div>
+
+            <Button className="mt-6 w-full rounded-full bg-pulse-blue text-white hover:bg-pulse-blue/90">
+              {c.book}
+            </Button>
+            <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[12px] text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" /> {c.lockPrice}
+            </p>
+          </div>
+        </Reveal>
+      </div>
+
+      {/* torre de control */}
+      <Reveal delay={0.1}>
+        <div className="mt-6 rounded-2xl border border-border bg-space-900/60 p-6 backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pulse-blue/15 text-pulse-cyan">
+                <SlidersHorizontal className="h-4 w-4" />
+              </span>
+              <span
+                className="text-foreground"
+                style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
+              >
+                {c.tower}
+              </span>
+              <span className="rounded-full bg-pulse-blue/15 px-3 py-1 text-[12px] text-pulse-cyan">
+                {c.tabOverview}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[12px]">
+                <Filter className="h-3.5 w-3.5" /> {c.filters}
+              </span>
+              <span className="relative flex h-8 w-8 items-center justify-center rounded-full border border-border">
+                <Bell className="h-4 w-4" />
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[9px] text-white">
+                  3
+                </span>
+              </span>
+            </div>
+          </div>
+
+          {/* scores */}
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {c.scores.map((s, i) => (
+              <ScoreCard key={s.label} score={s} icon={SCORE_ICONS[i]} />
+            ))}
+          </div>
+
+          {/* paneles */}
+          <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr]">
+            {/* misiones activas + globo */}
+            <div className="rounded-xl border border-border bg-space-950/50 p-4">
+              <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                {c.activeMissions}
+                <span className="rounded bg-pulse-blue/15 px-1.5 text-[11px] text-pulse-cyan">
+                  12
+                </span>
               </div>
-
-              <TabsContent value="tower" className="mt-6">
-                <div className="grid grid-cols-3 gap-3">
-                  <Score
-                    icon={ShieldCheck}
-                    label={c.readiness}
-                    value="96"
-                    trend="up"
-                  />
-                  <Score
-                    icon={Activity}
-                    label={c.risk}
-                    value="23"
-                    trend="down"
-                    tone="good"
-                  />
-                  <Score
-                    icon={HeartPulse}
-                    label={c.health}
-                    value="98"
-                    trend="up"
-                  />
-                </div>
-                <div className="mt-4 rounded-xl border border-border bg-space-950/50 p-4">
-                  <div className="mb-3 text-[13px] text-muted-foreground">
-                    {c.activeMissions}
-                  </div>
-                  <div className="space-y-2.5">
-                    {MISSIONS.map((m) => (
-                      <div key={m.id} className="flex items-center gap-3">
-                        <span className="w-14 text-[13px] text-foreground">
-                          {m.id}
-                        </span>
-                        <span className="w-24 text-[12px] text-muted-foreground">
-                          {m.route}
-                        </span>
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
-                          <div
-                            className="h-full rounded-full bg-pulse-cyan"
-                            style={{ width: `${m.pct}%` }}
-                          />
-                        </div>
-                        <span className="w-14 text-right text-[12px] text-pulse-cyan">
-                          {m.eta}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="alerts" className="mt-6 space-y-3">
-                {c.alerts.map((a) => (
-                  <div
-                    key={a.text}
-                    className="flex items-start gap-3 rounded-xl border border-border bg-space-950/50 p-4"
-                  >
+              <div className="relative mt-2 h-56 overflow-hidden rounded-lg">
+                <GlobeCanvas
+                  interactive
+                  hubs={MISSION_HUBS}
+                  onSelectHub={() => undefined}
+                  showHubLabels
+                  routes={routes}
+                  autoSpin
+                  spinSpeed={0.05}
+                  quality="low"
+                  cameraDistance={5.4}
+                  minDistance={3.6}
+                  maxDistance={9}
+                  dpr={[1, 1.5]}
+                  lightsPointScale={5}
+                  showZoomButtons
+                  showHint
+                  hintLabel={c.dragHint}
+                />
+              </div>
+              <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+                {c.legend.map((l, i) => (
+                  <span key={l} className="flex items-center gap-1.5">
                     <span
-                      className={`mt-1 h-2 w-2 rounded-full ${a.good ? "bg-pulse-cyan" : "bg-amber"}`}
+                      className={`h-2 w-2 rounded-full ${["bg-emerald-400", "bg-pulse-blue", "bg-amber"][i]}`}
                     />
-                    <div className="flex-1">
-                      <div className="text-[14px] text-foreground">
+                    {l}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* alertas */}
+            <div className="rounded-xl border border-border bg-space-950/50 p-4">
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="text-foreground">{c.alertsTitle}</span>
+                <span className="text-[12px] text-pulse-cyan">{c.seeAll}</span>
+              </div>
+              <div className="mt-3 space-y-2.5">
+                {c.alerts.map((a) => (
+                  <div key={a.text} className="flex items-start gap-2.5">
+                    <span
+                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${ALERT_TONE[a.tone]}`}
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-[13px] text-foreground">
                         {a.text}
                       </div>
-                      <div className="text-[12px] text-muted-foreground">
-                        {a.time}
+                      <div className="text-[11px] text-muted-foreground">
+                        {a.meta}
                       </div>
                     </div>
-                    <MessageCircle className="h-4 w-4 text-pulse-cyan" />
                   </div>
                 ))}
-                <div className="flex items-center gap-2 rounded-xl border border-pulse-blue/30 bg-pulse-blue/10 p-3 text-[13px] text-muted-foreground">
-                  <MessageCircle className="h-4 w-4 text-pulse-cyan" />
-                  {c.whatsapp}
-                </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
+
+            {/* actividad en tiempo real */}
+            <div className="rounded-xl border border-border bg-space-950/50 p-4">
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="text-foreground">{c.activityTitle}</span>
+                <span className="text-[12px] text-pulse-cyan">
+                  {c.seeAllShort}
+                </span>
+              </div>
+              <div className="mt-3 space-y-2.5">
+                {c.activity.map((a) => (
+                  <div key={a.id} className="flex items-center gap-2.5">
+                    {a.tone === "flight" ? (
+                      <Plane
+                        className={`h-3.5 w-3.5 ${ACTIVITY_TONE[a.tone]}`}
+                      />
+                    ) : (
+                      <CircleDot
+                        className={`h-3.5 w-3.5 ${ACTIVITY_TONE[a.tone]}`}
+                      />
+                    )}
+                    <span className="w-14 text-[12px] text-foreground">
+                      {a.id}
+                    </span>
+                    <span className="flex-1 text-[12px] text-muted-foreground">
+                      {a.status}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {a.meta}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </Reveal>
@@ -302,59 +708,102 @@ export function Platform() {
   );
 }
 
-function Control({
-  label,
+function RouteSelect({
   value,
-  children,
+  onChange,
+  exclude,
 }: {
-  label: string;
   value: string;
-  children: React.ReactNode;
+  onChange: (v: string) => void;
+  exclude: string;
 }) {
   return (
-    <div className="mt-5">
-      <div className="mb-2 flex justify-between text-[13px]">
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="border-border bg-space-950/60 text-[13px]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {PORTS.filter((p) => p.value !== exclude).map((p) => (
+          <SelectItem key={p.value} value={p.value}>
+            {p.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function StepSlider({
+  label,
+  steps,
+  value,
+  onChange,
+}: {
+  label: string;
+  steps: string[];
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between text-[13px]">
         <span className="text-muted-foreground">{label}</span>
-        <span className="text-foreground">{value}</span>
+        <span className="text-pulse-cyan">{steps[value]}</span>
       </div>
-      {children}
+      <Slider
+        value={[value]}
+        min={0}
+        max={steps.length - 1}
+        step={1}
+        onValueChange={(v) => onChange(v[0])}
+      />
+      <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
+        {steps.map((s) => (
+          <span key={s}>{s}</span>
+        ))}
+      </div>
     </div>
   );
 }
 
-function Score({
+function ScoreCard({
+  score,
   icon: Icon,
-  label,
-  value,
-  trend,
-  tone,
 }: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  trend: "up" | "down";
-  tone?: string;
+  score: {
+    label: string;
+    value: string;
+    qual: string;
+    trend: string;
+    good: boolean;
+  };
+  icon: typeof ShieldCheck;
 }) {
-  const Trend = trend === "up" ? TrendingUp : TrendingDown;
-  const good = tone === "good" ? trend === "down" : true;
   return (
     <div className="rounded-xl border border-border bg-space-950/50 p-4">
-      <Icon className="h-4 w-4 text-pulse-blue" />
-      <div
-        className="mt-2 text-foreground"
-        style={{
-          fontFamily: "var(--font-display)",
-          fontSize: "1.8rem",
-          fontWeight: 600,
-        }}
-      >
-        {value}
-      </div>
       <div className="flex items-center justify-between">
-        <span className="text-[12px] text-muted-foreground">{label}</span>
-        <Trend
-          className={`h-3.5 w-3.5 ${good ? "text-pulse-cyan" : "text-danger"}`}
-        />
+        <Icon className="h-4 w-4 text-pulse-blue" />
+        <span
+          className={`text-[11px] ${score.good ? "text-emerald-400" : "text-danger"}`}
+        >
+          {score.trend}
+        </span>
+      </div>
+      <div className="mt-2 flex items-baseline gap-2">
+        <span
+          className="text-foreground"
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: "1.7rem",
+            fontWeight: 600,
+          }}
+        >
+          {score.value}
+        </span>
+        <span className="text-[12px] text-emerald-400">{score.qual}</span>
+      </div>
+      <div className="mt-1 text-[12px] text-muted-foreground">
+        {score.label}
       </div>
     </div>
   );

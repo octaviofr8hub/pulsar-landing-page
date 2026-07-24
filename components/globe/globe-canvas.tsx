@@ -100,6 +100,7 @@ interface GlobeSceneProps {
   focusHubId: string | null;
   zoomProgress: number;
   quality: "high" | "low";
+  textured: boolean;
   minDistance: number;
   maxDistance: number;
   tilt: [number, number, number];
@@ -124,6 +125,7 @@ function GlobeScene({
   focusHubId,
   zoomProgress,
   quality,
+  textured,
   minDistance,
   maxDistance,
   tilt,
@@ -210,6 +212,7 @@ function GlobeScene({
           <Earth
             radius={GLOBE_RADIUS}
             quality={quality}
+            textured={textured}
             lightsPointScale={lightsPointScale}
           />
           {hubs && onSelectHub && (
@@ -275,6 +278,8 @@ export interface GlobeCanvasProps {
   focusHubId?: string | null;
   zoomProgress?: number;
   quality?: "high" | "low";
+  /** Modo "black marble" con textura de continentes (más pesado). */
+  textured?: boolean;
   cameraDistance?: number;
   minDistance?: number;
   maxDistance?: number;
@@ -307,6 +312,7 @@ export function GlobeCanvas({
   focusHubId = null,
   zoomProgress = 0,
   quality = "high",
+  textured = false,
   cameraDistance = 6,
   minDistance = 3.4,
   maxDistance = 12,
@@ -406,6 +412,7 @@ export function GlobeCanvas({
                 focusHubId={focusHubId}
                 zoomProgress={zoomProgress}
                 quality={quality}
+                textured={textured}
                 minDistance={minDistance}
                 maxDistance={maxDistance}
                 tilt={tilt}

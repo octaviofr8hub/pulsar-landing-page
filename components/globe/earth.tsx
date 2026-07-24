@@ -3,6 +3,7 @@ import { AdditiveBlending, BackSide, Color } from "three";
 
 import { CountryLines } from "@/components/network/country-lines";
 import { useScenePalette } from "@/components/scene/palette";
+import { buildEarthAlbedo } from "@/lib/earth-texture";
 
 import { NightLights } from "./night-lights";
 
@@ -35,46 +36,69 @@ export interface EarthProps {
   /** Globos ambientales usan menos densidad de luces y sin retícula. */
   quality?: "high" | "low";
   lightsPointScale?: number;
+  /**
+   * Modo "black marble": continentes rellenos con textura procedural + luces de
+   * ciudad emisivas (se parece a la referencia). El modo por defecto (líneas de
+   * frontera + puntos) es más ligero para globos ambientales/hero.
+   */
+  textured?: boolean;
 }
 
 /**
- * Tierra estilizada tipo "night earth": esfera oscura que la luz direccional
- * divide en día/noche, fronteras reales luminosas (`CountryLines`), luces de
- * ciudad en la cara nocturna y una cáscara de atmósfera fresnel para el halo.
+ * Tierra tipo "night earth". En modo `textured` usa una textura equirectangular
+ * generada al vuelo (océano + continentes + luces); si no, el estilo de líneas
+ * de frontera + puntos. En ambos, la luz direccional dibuja el terminador y una
+ * cáscara de atmósfera fresnel produce el halo azul.
  */
 export function Earth({
   radius,
   quality = "high",
   lightsPointScale,
+  textured = false,
 }: EarthProps) {
   const palette = useScenePalette();
 
   const atmosphereUniforms = useMemo(
     () => ({
       uColor: { value: new Color(palette.glow) },
-      uIntensity: { value: 1.15 },
+      uIntensity: { value: 1.2 },
     }),
     [palette.glow],
+  );
+
+  const albedo = useMemo(
+    () => (textured ? buildEarthAlbedo() : null),
+    [textured],
   );
 
   return (
     <group>
       <mesh>
         <sphereGeometry args={[radius, 64, 48]} />
-        <meshStandardMaterial
-          color={palette.dark}
-          roughness={0.92}
-          metalness={0.04}
-          emissive={palette.accent}
-          emissiveIntensity={0.06}
-        />
+        {textured ? (
+          <meshStandardMaterial
+            map={albedo}
+            roughness={1}
+            metalness={0}
+            emissive={palette.accent}
+            emissiveIntensity={0.05}
+          />
+        ) : (
+          <meshStandardMaterial
+            color={palette.dark}
+            roughness={0.92}
+            metalness={0.04}
+            emissive={palette.accent}
+            emissiveIntensity={0.06}
+          />
+        )}
       </mesh>
 
-      <CountryLines radius={radius} />
+      {!textured && <CountryLines radius={radius} />}
 
       <NightLights radius={radius} pointScale={lightsPointScale} />
 
-      {quality === "high" && (
+      {!textured && quality === "high" && (
         <mesh scale={1.002}>
           <sphereGeometry args={[radius, 36, 24]} />
           <meshBasicMaterial

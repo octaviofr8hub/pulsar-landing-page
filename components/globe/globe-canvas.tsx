@@ -24,6 +24,7 @@ import { GlobeHint } from "./globe-hint";
 import { useInView, useIsClient, useReducedMotion } from "./hooks";
 import { HubMarkers } from "./hub-markers";
 import { PlanetBody } from "./planet-body";
+import { SUN_POSITION } from "./textured-earth";
 import { ZoomControls } from "./zoom-controls";
 import type { GlobeHub } from "./types";
 
@@ -101,6 +102,7 @@ interface GlobeSceneProps {
   zoomProgress: number;
   quality: "high" | "low";
   textured: boolean;
+  enableWheelZoom: boolean;
   minDistance: number;
   maxDistance: number;
   tilt: [number, number, number];
@@ -126,6 +128,7 @@ function GlobeScene({
   zoomProgress,
   quality,
   textured,
+  enableWheelZoom,
   minDistance,
   maxDistance,
   tilt,
@@ -177,7 +180,7 @@ function GlobeScene({
   return (
     <>
       <ambientLight intensity={0.18} />
-      <directionalLight position={[5, 2.5, 4]} intensity={2.4} />
+      <directionalLight position={SUN_POSITION} intensity={2.4} />
       <pointLight
         position={[-6, -1, -4]}
         intensity={9}
@@ -193,7 +196,7 @@ function GlobeScene({
           ref={controlsRef}
           makeDefault
           enablePan={false}
-          enableZoom
+          enableZoom={enableWheelZoom}
           enableDamping
           dampingFactor={0.08}
           rotateSpeed={0.45}
@@ -244,6 +247,7 @@ function GlobeScene({
           position={[7, 1, -1]}
           radius={0.55}
           color="#c3c9d6"
+          mapUrl="/planets/moon.jpg"
           roughness={1}
         />
       )}
@@ -252,6 +256,8 @@ function GlobeScene({
           position={[13, -1.4, -1.5]}
           radius={0.9}
           color="#c0603a"
+          mapUrl="/planets/mars.jpg"
+          bumpUrl="/planets/mars-bump.jpg"
           roughness={0.95}
           atmosphere="#e0714a"
           atmosphereIntensity={0.7}
@@ -280,6 +286,11 @@ export interface GlobeCanvasProps {
   quality?: "high" | "low";
   /** Modo "black marble" con textura de continentes (más pesado). */
   textured?: boolean;
+  /**
+   * Permite hacer zoom con la rueda/pinch. Por defecto `false`: el globo de
+   * fondo NO secuestra el scroll de la página (se usan los botones +/−).
+   */
+  enableWheelZoom?: boolean;
   cameraDistance?: number;
   minDistance?: number;
   maxDistance?: number;
@@ -313,6 +324,7 @@ export function GlobeCanvas({
   zoomProgress = 0,
   quality = "high",
   textured = false,
+  enableWheelZoom = false,
   cameraDistance = 6,
   minDistance = 3.4,
   maxDistance = 12,
@@ -379,7 +391,7 @@ export function GlobeCanvas({
       ref={containerRef}
       className={`relative h-full w-full ${
         mode === "hero" ? "cursor-grab active:cursor-grabbing" : ""
-      } ${className}`}
+      } ${interactive ? "touch-pan-y" : ""} ${className}`}
       {...heroPointerHandlers}
     >
       {mounted ? (
@@ -413,6 +425,7 @@ export function GlobeCanvas({
                 zoomProgress={zoomProgress}
                 quality={quality}
                 textured={textured}
+                enableWheelZoom={enableWheelZoom}
                 minDistance={minDistance}
                 maxDistance={maxDistance}
                 tilt={tilt}

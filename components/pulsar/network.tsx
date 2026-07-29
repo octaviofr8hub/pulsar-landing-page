@@ -218,6 +218,8 @@ export function Network() {
           cameraDistance={5.4}
           minDistance={3.4}
           maxDistance={10}
+          showZoomButtons
+          showHint
         />
       </div>
       {/* scrims: oscurecen los bordes (texto/paneles), dejan ver el globo al centro */}
@@ -225,7 +227,7 @@ export function Network() {
       <div className="pointer-events-none absolute inset-0 bg-space-950/45 lg:bg-transparent" />
 
       {/* contenido flotando sobre el globo */}
-      <div className="pointer-events-none relative mx-auto grid min-h-[720px] max-w-7xl gap-8 px-6 py-16 lg:grid-cols-[320px_minmax(0,1fr)_340px] lg:items-start">
+      <div className="pointer-events-none relative mx-auto grid min-h-[720px] max-w-[1600px] gap-8 px-6 py-16 md:px-10 lg:grid-cols-[320px_minmax(0,1fr)_340px] lg:items-start lg:px-14">
         {/* columna de texto */}
         <Reveal className="pointer-events-none">
           <Eyebrow>{c.eyebrow}</Eyebrow>

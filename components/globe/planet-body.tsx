@@ -1,9 +1,11 @@
+import { useTexture } from "@react-three/drei";
 import { useMemo, type ReactNode } from "react";
 import {
   AdditiveBlending,
   BackSide,
   Color,
   DoubleSide,
+  SRGBColorSpace,
   type ColorRepresentation,
 } from "three";
 
@@ -29,10 +31,45 @@ const RIM_FRAGMENT = /* glsl */ `
   }
 `;
 
+/** Material con textura satelital (Luna/Marte), iluminado por la escena. */
+function PlanetSurfaceMaterial({
+  mapUrl,
+  bumpUrl,
+  roughness,
+}: {
+  mapUrl: string;
+  bumpUrl?: string;
+  roughness: number;
+}) {
+  const [rawMap, rawBump] = useTexture(bumpUrl ? [mapUrl, bumpUrl] : [mapUrl]);
+
+  // Clonamos para marcar el albedo como sRGB sin mutar el valor del hook.
+  const map = useMemo(() => {
+    const cloned = rawMap.clone();
+    cloned.colorSpace = SRGBColorSpace;
+    cloned.needsUpdate = true;
+    return cloned;
+  }, [rawMap]);
+
+  return (
+    <meshStandardMaterial
+      map={map}
+      bumpMap={bumpUrl ? rawBump : null}
+      bumpScale={bumpUrl ? 0.04 : 0}
+      roughness={roughness}
+      metalness={0}
+    />
+  );
+}
+
 export interface PlanetBodyProps {
   position: [number, number, number];
   radius: number;
   color: ColorRepresentation;
+  /** Textura satelital de albedo; si se omite, se usa `color` plano. */
+  mapUrl?: string;
+  /** Mapa de relieve (bump) opcional que acompaña a `mapUrl`. */
+  bumpUrl?: string;
   roughness?: number;
   /** Color del halo fresnel; omitir para un cuerpo sin atmósfera (Luna). */
   atmosphere?: ColorRepresentation;
@@ -51,6 +88,8 @@ export function PlanetBody({
   position,
   radius,
   color,
+  mapUrl,
+  bumpUrl,
   roughness = 0.95,
   atmosphere,
   atmosphereIntensity = 0.9,
@@ -72,14 +111,22 @@ export function PlanetBody({
   return (
     <group position={position} scale={scale}>
       <mesh>
-        <sphereGeometry args={[radius, 48, 48]} />
-        <meshStandardMaterial
-          color={color}
-          roughness={roughness}
-          metalness={0.02}
-          emissive={color}
-          emissiveIntensity={0.04}
-        />
+        <sphereGeometry args={[radius, 64, 64]} />
+        {mapUrl ? (
+          <PlanetSurfaceMaterial
+            mapUrl={mapUrl}
+            bumpUrl={bumpUrl}
+            roughness={roughness}
+          />
+        ) : (
+          <meshStandardMaterial
+            color={color}
+            roughness={roughness}
+            metalness={0.02}
+            emissive={color}
+            emissiveIntensity={0.04}
+          />
+        )}
       </mesh>
 
       {rimUniforms && (

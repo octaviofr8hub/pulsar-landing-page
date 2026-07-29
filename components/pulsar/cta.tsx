@@ -224,7 +224,7 @@ export function CTA() {
         style={{ backgroundImage: NOISE_BG }}
       />
 
-      <div className="relative mx-auto max-w-7xl px-6 py-24">
+      <div className="relative mx-auto max-w-[1600px] px-6 py-24 md:px-10 lg:px-14">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <Reveal>
             <h2

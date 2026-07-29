@@ -3,9 +3,9 @@ import { AdditiveBlending, BackSide, Color } from "three";
 
 import { CountryLines } from "@/components/network/country-lines";
 import { useScenePalette } from "@/components/scene/palette";
-import { buildEarthAlbedo } from "@/lib/earth-texture";
 
 import { NightLights } from "./night-lights";
+import { TexturedEarth } from "./textured-earth";
 
 const ATMOSPHERE_VERTEX = /* glsl */ `
   varying vec3 vNormal;
@@ -66,24 +66,13 @@ export function Earth({
     [palette.glow],
   );
 
-  const albedo = useMemo(
-    () => (textured ? buildEarthAlbedo() : null),
-    [textured],
-  );
-
   return (
     <group>
-      <mesh>
-        <sphereGeometry args={[radius, 64, 48]} />
-        {textured ? (
-          <meshStandardMaterial
-            map={albedo}
-            roughness={1}
-            metalness={0}
-            emissive={palette.accent}
-            emissiveIntensity={0.05}
-          />
-        ) : (
+      {textured ? (
+        <TexturedEarth radius={radius} />
+      ) : (
+        <mesh>
+          <sphereGeometry args={[radius, 64, 48]} />
           <meshStandardMaterial
             color={palette.dark}
             roughness={0.92}
@@ -91,12 +80,14 @@ export function Earth({
             emissive={palette.accent}
             emissiveIntensity={0.06}
           />
-        )}
-      </mesh>
+        </mesh>
+      )}
 
       {!textured && <CountryLines radius={radius} />}
 
-      <NightLights radius={radius} pointScale={lightsPointScale} />
+      {!textured && (
+        <NightLights radius={radius} pointScale={lightsPointScale} />
+      )}
 
       {!textured && quality === "high" && (
         <mesh scale={1.002}>

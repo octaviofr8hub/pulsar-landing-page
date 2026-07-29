@@ -24,7 +24,7 @@ export function Section({
   return (
     <section
       id={id}
-      className={`relative mx-auto w-full max-w-7xl px-6 py-24 md:py-32 ${className}`}
+      className={`relative mx-auto w-full max-w-[1600px] px-6 py-24 md:px-10 md:py-32 lg:px-14 ${className}`}
     >
       {children}
     </section>

@@ -11,6 +11,7 @@ import { SceneFallback } from "@/components/scene/scene-fallback";
 import { Earth } from "./earth";
 import { useInView, useIsClient, useReducedMotion } from "./hooks";
 import { PlanetBody } from "./planet-body";
+import { SUN_POSITION } from "./textured-earth";
 
 const EARTH_R = 1.25;
 const MOON_POS = new Vector3(4.4, 0.7, 0);
@@ -82,7 +83,7 @@ function DioramaScene({
   return (
     <>
       <ambientLight intensity={0.2} />
-      <directionalLight position={[5, 2.5, 4]} intensity={2.4} />
+      <directionalLight position={SUN_POSITION} intensity={2.4} />
       <pointLight position={[-8, -2, -4]} intensity={7} color="#3b82f6" />
 
       <Stars
@@ -114,7 +115,7 @@ function DioramaScene({
       {/* Tierra + red terrestre */}
       <group rotation={[0.32, 0, 0.12]}>
         <group ref={earthSpin}>
-          <Earth radius={EARTH_R} quality="low" lightsPointScale={5} />
+          <Earth radius={EARTH_R} quality="low" textured />
         </group>
       </group>
       <Html position={[0, -EARTH_R - 0.5, 0]} center distanceFactor={11}>
@@ -135,6 +136,7 @@ function DioramaScene({
         position={[MOON_POS.x, MOON_POS.y, MOON_POS.z]}
         radius={0.42}
         color="#c3c9d6"
+        mapUrl="/planets/moon.jpg"
         roughness={1}
       >
         <Html position={[0, 0.65, 0]} center distanceFactor={11}>
@@ -160,6 +162,8 @@ function DioramaScene({
         radius={0.7}
         scale={0.55 + marsReveal * 0.55}
         color="#c0603a"
+        mapUrl="/planets/mars.jpg"
+        bumpUrl="/planets/mars-bump.jpg"
         roughness={0.95}
         atmosphere="#e0714a"
         atmosphereIntensity={0.7}

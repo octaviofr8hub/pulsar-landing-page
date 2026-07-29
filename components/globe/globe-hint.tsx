@@ -10,7 +10,7 @@ export interface GlobeHintProps {
  * zoom). Es puramente decorativo: no captura eventos del canvas de abajo.
  */
 export function GlobeHint({
-  label = "Arrastra para rotar · scroll para zoom",
+  label = "Arrastra para rotar · usa + / −",
   className = "",
 }: GlobeHintProps) {
   return (

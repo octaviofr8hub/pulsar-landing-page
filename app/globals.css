@@ -161,6 +161,22 @@
     0 0 36px var(--brand-glow);
 }
 
+/* Latido del halo del isotipo: lento y sutil, como el pulso de un púlsar */
+@keyframes pulsar-beat {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@utility pulsar-beat {
+  animation: pulsar-beat 3.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
 /* Fondo estático de respaldo cuando WebGL no está disponible */
 @utility pulsar-halo {
   background: radial-gradient(
@@ -189,6 +205,13 @@
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
+  }
+}
+
+/* Sin capa: gana sobre la utilidad de Tailwind, que sí va en `@layer`. */
+@media (prefers-reduced-motion: reduce) {
+  .pulsar-beat {
+    animation: none;
   }
 }
 

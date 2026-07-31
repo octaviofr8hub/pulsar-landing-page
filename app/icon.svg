@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Isotipo de Pulsar como favicon. Es un asset independiente del bundle, así
+       que los colores van en hex: no puede leer los tokens de globals.css. -->
+  <defs>
+    <radialGradient id="core" cx="42%" cy="36%" r="72%">
+      <stop offset="0%" stop-color="#eff6ff" />
+      <stop offset="22%" stop-color="#bfdbfe" />
+      <stop offset="48%" stop-color="#38bdf8" />
+      <stop offset="76%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </radialGradient>
+    <radialGradient id="halo">
+      <stop offset="0%" stop-color="#bfdbfe" stop-opacity="0.85" />
+      <stop offset="30%" stop-color="#60a5fa" stop-opacity="0.4" />
+      <stop offset="65%" stop-color="#3b82f6" stop-opacity="0.14" />
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0" />
+    </radialGradient>
+    <filter id="bloom" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="4" />
+    </filter>
+  </defs>
+
+  <circle cx="50" cy="50" r="49" fill="url(#halo)" />
+  <path
+    d="M 50 2 Q 50 50 98 50 Q 50 50 50 98 Q 50 50 2 50 Q 50 50 50 2 Z"
+    fill="url(#core)"
+    filter="url(#bloom)"
+  />
+  <path
+    d="M 50 2 Q 50 50 98 50 Q 50 50 50 98 Q 50 50 2 50 Q 50 50 50 2 Z"
+    fill="url(#core)"
+  />
+  <circle cx="50" cy="50" r="6" fill="#eff6ff" filter="url(#bloom)" />
+</svg>

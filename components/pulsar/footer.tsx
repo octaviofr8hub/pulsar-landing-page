@@ -1,7 +1,7 @@
 "use client";
 
-import { Rocket } from "lucide-react";
 import { useLanguage } from "@/components/i18n/use-language";
+import { PulsarLogo } from "@/components/ui/pulsar-mark";
 
 const COPY = {
   es: {
@@ -58,17 +58,7 @@ export function Footer() {
       <div className="mx-auto max-w-[1600px] px-6 py-16 md:px-10 lg:px-14">
         <div className="grid gap-10 md:grid-cols-[1.5fr_repeat(4,1fr)]">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-pulse-blue to-pulse-cyan">
-                <Rocket className="h-4 w-4 text-white" />
-              </span>
-              <span
-                style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
-                className="text-foreground"
-              >
-                Pulsar
-              </span>
-            </div>
+            <PulsarLogo size="sm" />
             <p className="mt-4 max-w-xs text-[14px] text-muted-foreground">
               {c.desc}
             </p>

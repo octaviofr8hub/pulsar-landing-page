@@ -1,15 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { AlertTriangle, Ship, Lock, TrendingUp } from "lucide-react";
 import { Section, Reveal, Eyebrow, StatStrip } from "./shared";
-import { GlobeCanvas } from "@/components/globe/globe-canvas";
 import { useLanguage } from "@/components/i18n/use-language";
+import {
+  formatDuration,
+  formatKm,
+  greatCircleKm,
+  SHIP_MODEL,
+  shipHoursForPath,
+  suborbitalProfile,
+} from "@/lib/logistics";
 import {
   WORLD_LAND_PATH,
   WORLD_BORDER_PATH,
   projectEquirectangular as proj,
 } from "@/lib/world-map-2d";
+import type { GeoPoint } from "@/types/network";
 
 // posiciones fijas de los chokepoints (el contenido se traduce por índice)
 const CHOKE_POS = [
@@ -19,17 +28,45 @@ const CHOKE_POS = [
   { lat: 50, lon: 60 },
 ];
 
-// ruta marítima aproximada Asia -> Europa por el Cabo de Buena Esperanza
-const SHIP_ROUTE = [
-  proj(31, 121),
-  proj(6, 104),
-  proj(-5, 95),
-  proj(-34, 25),
-  proj(-20, 5),
-  proj(20, -15),
-  proj(43, -9),
-  proj(51, 4),
+/** Derrota marítima Shanghái → Róterdam por el Cabo de Buena Esperanza. */
+const SHIP_WAYPOINTS: GeoPoint[] = [
+  { lat: 31, lon: 121 },
+  { lat: 6, lon: 104 },
+  { lat: -5, lon: 95 },
+  { lat: -34, lon: 25 },
+  { lat: -20, lon: 5 },
+  { lat: 20, lon: -15 },
+  { lat: 43, lon: -9 },
+  { lat: 51, lon: 4 },
 ];
+
+const ORIGIN = SHIP_WAYPOINTS[0];
+const DESTINATION = SHIP_WAYPOINTS[SHIP_WAYPOINTS.length - 1];
+
+/**
+ * Longitud real de la derrota: suma de círculos máximos entre derrotas
+ * intermedias, no la distancia directa. Es lo que convierte 9 000 km de
+ * separación en 24 000 km de navegación.
+ */
+const SHIP_PATH_KM = SHIP_WAYPOINTS.reduce(
+  (total, point, i) =>
+    i === 0 ? 0 : total + greatCircleKm(SHIP_WAYPOINTS[i - 1], point),
+  0,
+);
+
+const DIRECT_KM = greatCircleKm(ORIGIN, DESTINATION);
+const SHIP_HOURS = shipHoursForPath(SHIP_PATH_KM);
+const PULSAR = suborbitalProfile(DIRECT_KM);
+const DETOUR_RATIO = SHIP_PATH_KM / DIRECT_KM;
+
+/**
+ * Escala comprimida de la animación. La relación real entre 36 días y 43 min es
+ * de ~1 200:1 — ilegible en pantalla. Se comprime a 11:1 conservando el orden
+ * de magnitud percibido: el barco tarda una eternidad, el cohete cruza de un
+ * plumazo.
+ */
+const SHIP_ANIMATION_SECONDS = 26;
+const PULSAR_ANIMATION_SECONDS = 2.4;
 
 const COPY = {
   es: {
@@ -41,12 +78,13 @@ const COPY = {
     para1:
       "El comercio lleva 50 años sin acelerar: los aviones no pueden volar más rápido y las rutas cruzan estrechos que otros pueden cerrar.",
     para2: " El espacio no tiene estrechos.",
-    stats: [
-      { label: "Desvío marítimo", value: "35 días" },
-      { label: "Mar Rojo · Panamá", value: "Cuellos" },
-      { label: "Cierres y fronteras", value: "Restringido" },
-      { label: "de estancamiento", value: "50 años" },
-    ],
+    statLabels: {
+      ship: "Shanghái → Róterdam por el Cabo",
+      detour: "más millas que en recto",
+      choke: "Mar Rojo · Panamá · Suez",
+      pulsar: "el mismo trayecto, suborbital",
+    },
+    chokeValue: "3 cuellos",
     chokes: [
       {
         name: "Mar Rojo",
@@ -70,13 +108,14 @@ const COPY = {
       },
     ],
     costLabel: "Coste",
-    shipLabel: "35 días",
     legend: {
       ship: "Ruta marítima",
       choke: "Cuellos de botella",
       restricted: "Espacio restringido",
       arc: "Arco Pulsar",
     },
+    scaleNote: "Animación en escala comprimida (11:1); las cifras son reales.",
+    assumptions: `Portacontenedor a ${SHIP_MODEL.knots} nudos · ${SHIP_MODEL.portDwellHours} h en terminal · apogeo del arco ${Math.round(PULSAR.apogeeKm)} km`,
   },
   en: {
     eyebrow: "The problem",
@@ -87,12 +126,13 @@ const COPY = {
     para1:
       "Trade hasn't sped up in 50 years: planes can't fly faster and routes cross straits others can close.",
     para2: " Space has no straits.",
-    stats: [
-      { label: "Maritime detour", value: "35 days" },
-      { label: "Red Sea · Panama", value: "Chokepoints" },
-      { label: "Closures & borders", value: "Restricted" },
-      { label: "of stagnation", value: "50 years" },
-    ],
+    statLabels: {
+      ship: "Shanghai → Rotterdam via the Cape",
+      detour: "more miles than a straight line",
+      choke: "Red Sea · Panama · Suez",
+      pulsar: "same trip, suborbital",
+    },
+    chokeValue: "3 chokepoints",
     chokes: [
       {
         name: "Red Sea",
@@ -116,13 +156,14 @@ const COPY = {
       },
     ],
     costLabel: "Cost",
-    shipLabel: "35 days",
     legend: {
       ship: "Maritime route",
       choke: "Bottlenecks",
       restricted: "Restricted airspace",
       arc: "Pulsar arc",
     },
+    scaleNote: "Animation on a compressed 11:1 scale; the figures are real.",
+    assumptions: `Container ship at ${SHIP_MODEL.knots} kn · ${SHIP_MODEL.portDwellHours} h in terminal · arc apogee ${Math.round(PULSAR.apogeeKm)} km`,
   },
 } as const;
 
@@ -130,23 +171,37 @@ export function Problem() {
   const { lang } = useLanguage();
   const c = COPY[lang];
   const [active, setActive] = useState<number | null>(null);
-  const routePath = SHIP_ROUTE.map(
-    (p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`,
-  ).join(" ");
+
+  const { shipPath, arcPath } = useMemo(() => {
+    const pts = SHIP_WAYPOINTS.map((p) => proj(p.lat, p.lon));
+    const from = pts[0];
+    const to = pts[pts.length - 1];
+    return {
+      shipPath: pts
+        .map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`)
+        .join(" "),
+      arcPath: `M${from.x} ${from.y} Q 500 -40 ${to.x} ${to.y}`,
+    };
+  }, []);
+
+  const stats = [
+    {
+      value: formatDuration(SHIP_HOURS, lang),
+      label: c.statLabels.ship,
+    },
+    {
+      value: `${DETOUR_RATIO.toFixed(1)}×`,
+      label: c.statLabels.detour,
+    },
+    { value: c.chokeValue, label: c.statLabels.choke },
+    {
+      value: formatDuration(PULSAR.flightMinutes / 60, lang),
+      label: c.statLabels.pulsar,
+    },
+  ];
 
   return (
     <Section id="problema" className="overflow-hidden border-t border-border">
-      <div className="pointer-events-none absolute -bottom-48 -right-40 h-[620px] w-[620px] opacity-40">
-        <GlobeCanvas
-          quality="low"
-          autoSpin
-          spinSpeed={0.04}
-          dpr={[1, 1.5]}
-          lightsPointScale={5}
-          cameraDistance={5.4}
-        />
-      </div>
-
       <div className="relative grid gap-12 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-center">
         <Reveal>
           <Eyebrow>{c.eyebrow}</Eyebrow>
@@ -178,13 +233,23 @@ export function Problem() {
             <span className="text-foreground">{c.para2}</span>
           </p>
           <div className="mt-8">
-            <StatStrip items={[...c.stats]} />
+            <StatStrip items={stats} columns={2} />
           </div>
+          <p className="mt-3 font-mono text-[11px] leading-relaxed text-space-500">
+            {c.assumptions}
+          </p>
         </Reveal>
 
         <Reveal delay={0.1}>
           <div className="relative overflow-hidden rounded-2xl border border-border bg-space-900/60 p-4 backdrop-blur">
             <svg viewBox="0 0 1000 500" className="w-full">
+              <defs>
+                <radialGradient id="pulsar-trail">
+                  <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+
               <path
                 d={WORLD_LAND_PATH}
                 fillRule="evenodd"
@@ -197,38 +262,74 @@ export function Problem() {
                 strokeWidth={0.6}
               />
 
-              <path
-                d={routePath}
+              {/* Derrota marítima: se dibuja lenta, como el propio viaje. */}
+              <motion.path
+                d={shipPath}
                 fill="none"
                 stroke="#f43f5e"
                 strokeWidth={2.2}
                 strokeDasharray="7 6"
                 opacity={0.85}
+                initial={{ pathLength: 0 }}
+                whileInView={{ pathLength: 1 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 2.6, ease: "easeInOut" }}
               />
               <circle r={5} fill="#f87171">
                 <animateMotion
-                  dur="9s"
+                  dur={`${SHIP_ANIMATION_SECONDS}s`}
                   repeatCount="indefinite"
-                  path={routePath}
+                  path={shipPath}
                 />
               </circle>
               <text
-                x={SHIP_ROUTE[3].x}
-                y={SHIP_ROUTE[3].y + 24}
+                x={proj(SHIP_WAYPOINTS[3].lat, SHIP_WAYPOINTS[3].lon).x}
+                y={proj(SHIP_WAYPOINTS[3].lat, SHIP_WAYPOINTS[3].lon).y + 26}
                 fill="#8b96b3"
                 fontSize="16"
                 fontFamily="Space Grotesk"
               >
-                {c.shipLabel}
+                {formatDuration(SHIP_HOURS, lang)} ·{" "}
+                {formatKm(SHIP_PATH_KM, lang)}
               </text>
 
-              <path
-                d={`M${proj(31, 121).x} ${proj(31, 121).y} Q 500 -40 ${proj(51, 4).x} ${proj(51, 4).y}`}
+              {/* Arco Pulsar: mismo par de puertos, un orden de magnitud menos. */}
+              <motion.path
+                d={arcPath}
                 fill="none"
                 stroke="#60a5fa"
                 strokeWidth={2.4}
                 opacity={0.9}
+                initial={{ pathLength: 0 }}
+                whileInView={{ pathLength: 1 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
               />
+              <circle r={16} fill="url(#pulsar-trail)">
+                <animateMotion
+                  dur={`${PULSAR_ANIMATION_SECONDS}s`}
+                  repeatCount="indefinite"
+                  path={arcPath}
+                />
+              </circle>
+              <circle r={4.5} fill="#e0f2fe">
+                <animateMotion
+                  dur={`${PULSAR_ANIMATION_SECONDS}s`}
+                  repeatCount="indefinite"
+                  path={arcPath}
+                />
+              </circle>
+              <text
+                x={500}
+                y={44}
+                textAnchor="middle"
+                fill="#7dd3fc"
+                fontSize="16"
+                fontFamily="Space Grotesk"
+              >
+                {formatDuration(PULSAR.flightMinutes / 60, lang)} ·{" "}
+                {formatKm(DIRECT_KM, lang)}
+              </text>
 
               {CHOKE_POS.map((pos, i) => {
                 const p = proj(pos.lat, pos.lon);
@@ -249,6 +350,7 @@ export function Problem() {
                         attributeName="r"
                         values="9;16;9"
                         dur="2s"
+                        begin={`${i * 0.5}s`}
                         repeatCount="indefinite"
                       />
                     </circle>
@@ -259,7 +361,11 @@ export function Problem() {
             </svg>
 
             {active !== null && (
-              <div className="absolute left-4 top-4 w-60 rounded-xl border border-danger/40 bg-space-950/95 p-4 shadow-xl">
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute left-4 top-4 w-60 rounded-xl border border-danger/40 bg-space-950/95 p-4 shadow-xl"
+              >
                 <div className="flex items-center gap-2 text-danger">
                   <AlertTriangle className="h-4 w-4" />
                   <span style={{ fontFamily: "var(--font-display)" }}>
@@ -275,7 +381,7 @@ export function Problem() {
                     {c.chokes[active].cost}
                   </span>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             <div className="mt-4 grid grid-cols-2 gap-3 text-[13px] text-muted-foreground sm:grid-cols-4">
@@ -295,6 +401,9 @@ export function Problem() {
                 {c.legend.arc}
               </span>
             </div>
+            <p className="mt-3 font-mono text-[11px] text-space-500">
+              {c.scaleNote}
+            </p>
           </div>
         </Reveal>
       </div>

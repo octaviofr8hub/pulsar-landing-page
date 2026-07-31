@@ -54,7 +54,9 @@ export function Hero() {
       className="relative h-screen min-h-[640px] overflow-hidden"
     >
       {/* Globo full-bleed interactivo: la Tierra es la vista por defecto; se
-          arrastra y se hace zoom con los botones, sin secuestrar el scroll. */}
+          arrastra y se hace zoom con los botones, sin secuestrar el scroll.
+          Luna y Marte cierran el encuadre a la derecha — los tres destinos del
+          titular, en el orden en que los abre la red. */}
       <div className="absolute inset-0">
         <GlobeCanvas
           mode="orbit"
@@ -65,7 +67,11 @@ export function Hero() {
           cameraDistance={5.2}
           minDistance={3.2}
           maxDistance={9}
+          showMoon
+          showMars
+          showStars
           showZoomButtons
+          zoomButtonsClassName="top-24"
           showHint
           hintLabel={c.globeHint}
         />

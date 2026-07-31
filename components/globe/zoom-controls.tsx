@@ -1,5 +1,7 @@
 import { Minus, Plus } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+
 export interface ZoomControlsProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -14,7 +16,10 @@ export function ZoomControls({
 }: ZoomControlsProps) {
   return (
     <div
-      className={`absolute right-4 top-4 z-10 flex flex-col overflow-hidden rounded-full border border-border bg-space-950/70 backdrop-blur ${className}`}
+      className={cn(
+        "absolute right-4 top-4 z-10 flex flex-col overflow-hidden rounded-full border border-border bg-space-950/70 backdrop-blur",
+        className,
+      )}
     >
       <button
         type="button"

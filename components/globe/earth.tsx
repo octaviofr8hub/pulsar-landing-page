@@ -1,35 +1,11 @@
-import { useMemo } from "react";
-import { AdditiveBlending, BackSide, Color } from "three";
+import { AdditiveBlending } from "three";
 
 import { CountryLines } from "@/components/network/country-lines";
 import { useScenePalette } from "@/components/scene/palette";
 
+import { Atmosphere } from "./atmosphere";
 import { NightLights } from "./night-lights";
 import { TexturedEarth } from "./textured-earth";
-
-const ATMOSPHERE_VERTEX = /* glsl */ `
-  varying vec3 vNormal;
-  varying vec3 vViewDir;
-
-  void main() {
-    vNormal = normalize(normalMatrix * normal);
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    vViewDir = normalize(-mvPosition.xyz);
-    gl_Position = projectionMatrix * mvPosition;
-  }
-`;
-
-const ATMOSPHERE_FRAGMENT = /* glsl */ `
-  uniform vec3 uColor;
-  uniform float uIntensity;
-  varying vec3 vNormal;
-  varying vec3 vViewDir;
-
-  void main() {
-    float rim = 1.0 - abs(dot(normalize(vNormal), normalize(vViewDir)));
-    gl_FragColor = vec4(uColor, pow(rim, 3.0) * uIntensity);
-  }
-`;
 
 export interface EarthProps {
   radius: number;
@@ -45,10 +21,10 @@ export interface EarthProps {
 }
 
 /**
- * Tierra tipo "night earth". En modo `textured` usa una textura equirectangular
- * generada al vuelo (océano + continentes + luces); si no, el estilo de líneas
- * de frontera + puntos. En ambos, la luz direccional dibuja el terminador y una
- * cáscara de atmósfera fresnel produce el halo azul.
+ * Tierra tipo "night earth". En modo `textured` usa las texturas satelitales
+ * con shader día/noche; si no, el estilo de líneas de frontera + puntos. En
+ * ambos, la luz direccional dibuja el terminador y `Atmosphere` añade el limbo
+ * iluminado — una línea fina sobre el borde diurno, no una burbuja azul.
  */
 export function Earth({
   radius,
@@ -57,14 +33,6 @@ export function Earth({
   textured = false,
 }: EarthProps) {
   const palette = useScenePalette();
-
-  const atmosphereUniforms = useMemo(
-    () => ({
-      uColor: { value: new Color(palette.glow) },
-      uIntensity: { value: 1.2 },
-    }),
-    [palette.glow],
-  );
 
   return (
     <group>
@@ -103,18 +71,14 @@ export function Earth({
         </mesh>
       )}
 
-      <mesh scale={1.13}>
-        <sphereGeometry args={[radius, 48, 32]} />
-        <shaderMaterial
-          vertexShader={ATMOSPHERE_VERTEX}
-          fragmentShader={ATMOSPHERE_FRAGMENT}
-          uniforms={atmosphereUniforms}
-          side={BackSide}
-          transparent
-          blending={AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
+      <Atmosphere
+        radius={radius}
+        dayColor={palette.glow}
+        twilightColor={palette.flame}
+        thickness={0.2}
+        intensity={textured ? 1.15 : 0.85}
+        falloff={textured ? 6 : 5}
+      />
     </group>
   );
 }

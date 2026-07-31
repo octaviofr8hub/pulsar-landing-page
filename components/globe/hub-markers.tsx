@@ -80,10 +80,12 @@ function HubMarker({
       </mesh>
 
       {showLabel && (
+        // Sin `distanceFactor`: la etiqueta mantiene su tamaño en CSS. Escalarla
+        // con la distancia la disparaba en los canvas bajos (Solución, Torre de
+        // Control), donde drei la mide contra la altura del viewport.
         <Html
           center
           position={[0, 0.16, 0]}
-          distanceFactor={8}
           zIndexRange={[20, 0]}
           className="pointer-events-none select-none"
         >

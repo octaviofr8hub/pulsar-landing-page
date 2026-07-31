@@ -1,6 +1,6 @@
 "use client";
 
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, Stars } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   Suspense,
@@ -17,13 +17,18 @@ import { SceneErrorBoundary } from "@/components/scene/scene-error-boundary";
 import { SceneFallback } from "@/components/scene/scene-fallback";
 import { useScenePalette } from "@/components/scene/palette";
 import { latLonToVector3 } from "@/lib/geo";
-import type { OrbitalRoute } from "@/types/network";
+import {
+  EARTH_RADIUS_KM,
+  greatCircleKm,
+  suborbitalProfile,
+} from "@/lib/logistics";
+import type { GeoPoint, OrbitalRoute } from "@/types/network";
 
+import { CompanionBodies } from "./companion-bodies";
 import { Earth } from "./earth";
 import { GlobeHint } from "./globe-hint";
 import { useInView, useIsClient, useReducedMotion } from "./hooks";
 import { HubMarkers } from "./hub-markers";
-import { PlanetBody } from "./planet-body";
 import { SUN_POSITION } from "./textured-earth";
 import { ZoomControls } from "./zoom-controls";
 import type { GlobeHub } from "./types";
@@ -99,6 +104,9 @@ interface GlobeSceneProps {
   showHubLabels: boolean;
   routes: readonly OrbitalRoute[] | null;
   focusHubId: string | null;
+  focusPoint: GeoPoint | null;
+  showStars: boolean;
+  cameraDistance: number;
   zoomProgress: number;
   quality: "high" | "low";
   textured: boolean;
@@ -125,6 +133,9 @@ function GlobeScene({
   showHubLabels,
   routes,
   focusHubId,
+  focusPoint,
+  showStars,
+  cameraDistance,
   zoomProgress,
   quality,
   textured,
@@ -142,12 +153,12 @@ function GlobeScene({
   const orbitingRef = useRef(false);
 
   const focusYaw = useMemo(() => {
-    if (!focusHubId || !hubs) return null;
-    const hub = hubs.find((h) => h.id === focusHubId);
-    if (!hub) return null;
-    const v = latLonToVector3(hub.coords, GLOBE_RADIUS);
+    const coords =
+      focusPoint ?? hubs?.find((h) => h.id === focusHubId)?.coords ?? null;
+    if (!coords) return null;
+    const v = latLonToVector3(coords, GLOBE_RADIUS);
     return -Math.atan2(v.x, v.z);
-  }, [focusHubId, hubs]);
+  }, [focusHubId, focusPoint, hubs]);
 
   useFrame((_, delta) => {
     const g = spinRef.current;
@@ -188,6 +199,18 @@ function GlobeScene({
         distance={28}
         decay={1.7}
       />
+
+      {showStars && (
+        <Stars
+          radius={90}
+          depth={50}
+          count={reducedMotion ? 600 : 1600}
+          factor={3.2}
+          saturation={0}
+          fade
+          speed={reducedMotion ? 0 : 0.3}
+        />
+      )}
 
       {mode === "hero" && <HeroCameraRig zoomProgress={zoomProgress} />}
 
@@ -242,26 +265,13 @@ function GlobeScene({
         </group>
       </group>
 
-      {mode === "hero" && showMoon && (
-        <PlanetBody
-          position={[7, 1, -1]}
-          radius={0.55}
-          color="#c3c9d6"
-          mapUrl="/planets/moon.jpg"
-          roughness={1}
-        />
-      )}
-      {mode === "hero" && showMars && (
-        <PlanetBody
-          position={[13, -1.4, -1.5]}
-          radius={0.9}
-          color="#c0603a"
-          mapUrl="/planets/mars.jpg"
-          bumpUrl="/planets/mars-bump.jpg"
-          roughness={0.95}
-          atmosphere="#e0714a"
-          atmosphereIntensity={0.7}
-          ring={{ radius: 1.5, color: "#e0714a" }}
+      {(showMoon || showMars) && (
+        <CompanionBodies
+          showMoon={showMoon}
+          showMars={showMars}
+          reducedMotion={reducedMotion}
+          earthRadius={GLOBE_RADIUS}
+          cameraDistance={cameraDistance}
         />
       )}
     </>
@@ -282,6 +292,13 @@ export interface GlobeCanvasProps {
   showHubLabels?: boolean;
   routes?: readonly OrbitalRoute[];
   focusHubId?: string | null;
+  /**
+   * Gira el globo hasta poner estas coordenadas de cara a la cámara. Tiene
+   * prioridad sobre `focusHubId` — útil para encuadrar el centro de una ruta.
+   */
+  focusPoint?: GeoPoint | null;
+  /** Campo de estrellas de fondo (sólo donde el canvas es protagonista). */
+  showStars?: boolean;
   zoomProgress?: number;
   quality?: "high" | "low";
   /** Modo "black marble" con textura de continentes (más pesado). */
@@ -300,6 +317,8 @@ export interface GlobeCanvasProps {
   showHint?: boolean;
   hintLabel?: string;
   showZoomButtons?: boolean;
+  /** Reubica los botones +/− cuando algo (la navbar) ocupa su esquina. */
+  zoomButtonsClassName?: string;
 }
 
 /**
@@ -321,6 +340,8 @@ export function GlobeCanvas({
   showHubLabels = true,
   routes,
   focusHubId = null,
+  focusPoint = null,
+  showStars = false,
   zoomProgress = 0,
   quality = "high",
   textured = false,
@@ -334,6 +355,7 @@ export function GlobeCanvas({
   showHint = false,
   hintLabel,
   showZoomButtons = false,
+  zoomButtonsClassName,
 }: GlobeCanvasProps) {
   const controlsRef = useRef<ElementRef<typeof OrbitControls> | null>(null);
   const dragRef = useRef<DragState>({
@@ -422,6 +444,9 @@ export function GlobeCanvas({
                 showHubLabels={showHubLabels}
                 routes={routes ?? null}
                 focusHubId={focusHubId}
+                focusPoint={focusPoint}
+                showStars={showStars}
+                cameraDistance={cameraDistance}
                 zoomProgress={zoomProgress}
                 quality={quality}
                 textured={textured}
@@ -444,6 +469,7 @@ export function GlobeCanvas({
         <ZoomControls
           onZoomIn={() => zoomBy(0.8)}
           onZoomOut={() => zoomBy(1.25)}
+          className={zoomButtonsClassName}
         />
       )}
       {showHint && <GlobeHint label={hintLabel} />}
@@ -451,25 +477,37 @@ export function GlobeCanvas({
   );
 }
 
-/** Construye una ruta orbital puntual entre dos coordenadas (para Solución). */
+/**
+ * Ampliación del apogeo real para que el arco se lea sobre el globo. A escala
+ * exacta, 1 300 km de apogeo son un 20 % del radio terrestre: correcto, pero
+ * casi rasante en pantalla.
+ */
+const APOGEE_EXAGGERATION = 1.8;
+
+/**
+ * Construye una ruta orbital puntual entre dos coordenadas (para Solución). El
+ * apogeo no es decorativo: sale de la trayectoria balística de mínima energía
+ * que resuelve `suborbitalProfile`, escalado al radio del globo.
+ */
 export function buildSingleRoute(
-  from: { lat: number; lon: number },
-  to: { lat: number; lon: number },
+  from: GeoPoint,
+  to: GeoPoint,
+  options: { speed?: number; offset?: number } = {},
 ): OrbitalRoute {
-  const a = latLonToVector3(from, GLOBE_RADIUS);
-  const b = latLonToVector3(to, GLOBE_RADIUS);
-  // Apogeo proporcional a la separación angular: rutas largas suben más.
-  const arcHeight = MathUtils.clamp(0.3 + a.angleTo(b) * 0.55, 0.4, 1.2);
+  const { apogeeKm, distanceKm } = suborbitalProfile(greatCircleKm(from, to));
+  const arcHeight =
+    (GLOBE_RADIUS * apogeeKm * APOGEE_EXAGGERATION) / EARTH_RADIUS_KM;
+
   return {
     id: `${from.lat}_${from.lon}-${to.lat}_${to.lon}`,
     from: { city: "", country: "", coords: from },
     to: { city: "", country: "", coords: to },
-    offset: 0,
-    speed: 0.05,
+    offset: options.offset ?? 0,
+    speed: options.speed ?? 0.055,
     arcHeight,
     thrust: 0.6,
     status: "",
-    cargoKg: 0,
+    cargoKg: Math.round(distanceKm),
     efficiency: 0,
     etaMinutes: 0,
   };

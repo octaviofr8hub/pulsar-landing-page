@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Rocket } from "lucide-react";
 import { Button } from "./ui/button";
 import { LanguageToggle } from "./language-toggle";
 import { useLanguage } from "@/components/i18n/use-language";
+import { PulsarLogo } from "@/components/ui/pulsar-mark";
 
 const COPY = {
   es: {
@@ -50,16 +50,8 @@ export function Navbar() {
       }`}
     >
       <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between px-6 md:px-10 lg:px-14">
-        <a href="#top" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-pulse-blue to-pulse-cyan">
-            <Rocket className="h-4 w-4 text-white" />
-          </span>
-          <span
-            className="text-foreground"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
-          >
-            Pulsar
-          </span>
+        <a href="#top" aria-label="Pulsar">
+          <PulsarLogo size="sm" />
         </a>
         <nav className="hidden items-center gap-8 md:flex">
           {c.links.map((l) => (

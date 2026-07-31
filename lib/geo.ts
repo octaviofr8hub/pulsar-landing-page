@@ -39,6 +39,21 @@ export function slerpDirections(a: Vector3, b: Vector3, t: number): Vector3 {
 }
 
 /**
+ * Punto medio del círculo máximo entre dos coordenadas — el apogeo del arco.
+ * Es a donde hay que girar el globo para encuadrar una ruta de frente.
+ */
+export function greatCircleMidpoint(a: GeoPoint, b: GeoPoint): GeoPoint {
+  const mid = slerpDirections(
+    latLonToVector3(a, 1),
+    latLonToVector3(b, 1),
+    0.5,
+  ).normalize();
+  const lat = 90 - Math.acos(clamp(mid.y, -1, 1)) / DEG2RAD;
+  const lon = Math.atan2(mid.z, -mid.x) / DEG2RAD - 180;
+  return { lat, lon: ((lon + 540) % 360) - 180 };
+}
+
+/**
  * Punto del arco orbital en `t` (0 = origen, 1 = destino). La altitud sigue una
  * campana senoidal: apogeo a mitad de camino, superficie en ambos extremos.
  */

@@ -30,6 +30,16 @@ import { QuoteBox } from "./quote-box";
 import { GlobeCanvas, buildSingleRoute } from "@/components/globe/globe-canvas";
 import type { GlobeHub } from "@/components/globe/types";
 import { useLanguage } from "@/components/i18n/use-language";
+import {
+  chargeableKg,
+  formatDuration,
+  formatKm,
+  greatCircleKm,
+  launchEconomics,
+  PULSAR_GROUND_HOURS,
+  suborbitalProfile,
+  VOLUMETRIC_KG_PER_M3,
+} from "@/lib/logistics";
 
 const PORTS = [
   { value: "lgb", label: "Long Beach, USA (LGB)", lat: 33.75, lon: -118.19 },
@@ -37,6 +47,35 @@ const PORTS = [
   { value: "zlo", label: "Manzanillo (ZLO)", lat: 19.05, lon: -104.31 },
   { value: "rtm", label: "Róterdam (RTM)", lat: 51.95, lon: 4.14 },
 ];
+
+/**
+ * Presets de carga: dimensiones y masa de unidades paletizadas habituales. De
+ * ellos salen el volumen, el peso volumétrico y el facturable — que es lo que
+ * de verdad se cobra en cualquier freight forwarder.
+ */
+const CARGO_PRESETS = [
+  { lengthCm: 80, widthCm: 60, heightCm: 40, massKg: 90 },
+  { lengthCm: 120, widthCm: 80, heightCm: 60, massKg: 250 },
+  { lengthCm: 160, widthCm: 120, heightCm: 100, massKg: 700 },
+] as const;
+
+/**
+ * La urgencia no cambia la física del vuelo: comprime la cadena en tierra
+ * (ventanas dedicadas, aduana priorizada, última milla exclusiva) y eso es lo
+ * que se paga.
+ */
+const URGENCY_TIERS = [
+  { groundFactor: 1, priceFactor: 1 },
+  { groundFactor: 0.72, priceFactor: 1.18 },
+  { groundFactor: 0.5, priceFactor: 1.42 },
+] as const;
+
+/** Coste de cada servicio opcional: prima por kg o cargo fijo por envío. */
+const SERVICE_COSTS = [
+  { perKg: 2.2, fixed: 0 },
+  { perKg: 0, fixed: 180 },
+  { perKg: 1.4, fixed: 0 },
+] as const;
 
 const MISSION_HUBS: GlobeHub[] = [
   { id: "lgb", name: "Long Beach", coords: { lat: 33.75, lon: -118.19 } },
@@ -90,8 +129,13 @@ const COPY = {
     svc: ["Seguro", "Monitoreo IA", "Embalaje"],
     result: "Resultado",
     optimal: "ÓPTIMA",
-    transitLabel: "Tiempo de tránsito estimado",
+    transitLabel: "Tiempo puerta a puerta estimado",
     suborbital: "Suborbital",
+    flightOf: "de vuelo",
+    apogee: "apogeo",
+    billable: "facturables",
+    massRatio: "ratio de masas",
+    propellantPerKg: "de propelente por kg",
     priceLabel: "Precio estimado (Zayren)",
     book: "Reservar capacidad",
     lockPrice: "Bloquea tu precio por 15 minutos",
@@ -205,8 +249,13 @@ const COPY = {
     svc: ["Insurance", "AI monitoring", "Packaging"],
     result: "Result",
     optimal: "OPTIMAL",
-    transitLabel: "Estimated transit time",
+    transitLabel: "Estimated door-to-door time",
     suborbital: "Suborbital",
+    flightOf: "of flight",
+    apogee: "apogee",
+    billable: "billable",
+    massRatio: "mass ratio",
+    propellantPerKg: "of propellant per kg",
     priceLabel: "Estimated price (Zayren)",
     book: "Book capacity",
     lockPrice: "Lock your price for 15 minutes",
@@ -296,15 +345,50 @@ export function Platform() {
   const [services, setServices] = useState<Set<number>>(new Set([0, 1]));
   const [advanced, setAdvanced] = useState(true);
 
-  const price = useMemo(() => {
-    const base = 2100 + cargo * 260 + urgency * 420 + services.size * 90;
-    return base.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  }, [cargo, urgency, services]);
+  /**
+   * Todo el resultado del cotizador sale de la ruta elegida: distancia de
+   * círculo máximo → trayectoria balística → Δv → propelente → tarifa por kg.
+   * Cambiar de puerto cambia el precio porque cambia la energía del trayecto.
+   */
+  const quote = useMemo(() => {
+    const a = PORTS.find((p) => p.value === origin) ?? PORTS[0];
+    const b = PORTS.find((p) => p.value === dest) ?? PORTS[1];
+    const distanceKm = greatCircleKm(
+      { lat: a.lat, lon: a.lon },
+      { lat: b.lat, lon: b.lon },
+    );
+    const profile = suborbitalProfile(distanceKm);
+    const economics = launchEconomics(profile);
 
-  const transit = ["58 min", "52 min", "46 min"][urgency];
+    const box = CARGO_PRESETS[cargo];
+    const volumeM3 = (box.lengthCm * box.widthCm * box.heightCm) / 1_000_000;
+    const billableKg = chargeableKg(box.massKg, volumeM3);
+
+    const tier = URGENCY_TIERS[urgency];
+    const servicesUsd = [...services].reduce(
+      (sum, i) =>
+        sum + SERVICE_COSTS[i].fixed + SERVICE_COSTS[i].perKg * billableKg,
+      0,
+    );
+    const total =
+      billableKg * economics.usdPerKg * tier.priceFactor + servicesUsd;
+
+    return {
+      distanceKm,
+      profile,
+      economics,
+      box,
+      volumeM3,
+      billableKg,
+      doorHours:
+        profile.flightMinutes / 60 + PULSAR_GROUND_HOURS * tier.groundFactor,
+      price: total.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      densityKgM3: box.massKg / volumeM3,
+    };
+  }, [origin, dest, cargo, urgency, services]);
 
   const swap = () => {
     setOrigin(dest);
@@ -401,14 +485,17 @@ export function Platform() {
                 </div>
                 <div className="mt-3 flex items-center justify-between rounded-lg border border-border bg-space-950/40 px-3 py-2 text-[12px]">
                   <span className="text-muted-foreground">{c.volumetric}</span>
-                  <span className="text-foreground">0.58 m³</span>
+                  <span className="text-foreground">
+                    {quote.volumeM3.toFixed(2)} m³ ·{" "}
+                    {Math.round(quote.volumeM3 * VOLUMETRIC_KG_PER_M3)} kg
+                  </span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
                   {[
-                    [c.length, "120 cm"],
-                    [c.width, "80 cm"],
-                    [c.height, "60 cm"],
-                    [c.mass, "250 kg"],
+                    [c.length, `${quote.box.lengthCm} cm`],
+                    [c.width, `${quote.box.widthCm} cm`],
+                    [c.height, `${quote.box.heightCm} cm`],
+                    [c.mass, `${quote.box.massKg} kg`],
                   ].map(([k, v]) => (
                     <div
                       key={k}
@@ -515,19 +602,23 @@ export function Platform() {
               {c.transitLabel}
             </div>
             <div className="mt-1 flex items-baseline gap-2">
-              <span
-                className="text-foreground"
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "2.4rem",
-                  fontWeight: 600,
-                }}
+              <motion.span
+                key={quote.doorHours}
+                initial={{ opacity: 0.4, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="font-display text-foreground"
+                style={{ fontSize: "2.4rem", fontWeight: 600 }}
               >
-                {transit}
-              </span>
+                {formatDuration(quote.doorHours, lang)}
+              </motion.span>
               <span className="text-[13px] text-pulse-cyan">
                 {c.suborbital}
               </span>
+            </div>
+            <div className="mt-1 font-mono text-[11px] text-space-500">
+              {Math.round(quote.profile.flightMinutes)} min {c.flightOf} ·{" "}
+              {formatKm(quote.distanceKm, lang)} · {c.apogee}{" "}
+              {Math.round(quote.profile.apogeeKm)} km
             </div>
 
             <div className="mt-6 border-t border-border pt-4 text-[13px] text-muted-foreground">
@@ -535,23 +626,27 @@ export function Platform() {
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <motion.span
-                key={price}
+                key={quote.price}
                 initial={{ opacity: 0.4 }}
                 animate={{ opacity: 1 }}
-                className="text-pulse-cyan"
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "1.9rem",
-                  fontWeight: 600,
-                }}
+                className="font-display text-pulse-cyan"
+                style={{ fontSize: "1.9rem", fontWeight: 600 }}
               >
-                {price}
+                {quote.price}
               </motion.span>
               <span className="text-[14px] text-muted-foreground">ZYR</span>
-              <span className="ml-auto rounded-full bg-emerald-500/15 px-2 py-0.5 text-[12px] text-emerald-400">
-                -4.2%
+              <span className="ml-auto rounded-full border border-border px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
+                {Math.round(quote.billableKg)} kg {c.billable}
               </span>
             </div>
+            {/* La justificación del precio, a la vista: Δv → propelente → tarifa. */}
+            <p className="mt-3 font-mono text-[11px] leading-relaxed text-space-500">
+              Δv {quote.economics.deltaVKms.toFixed(2)} km/s · {c.massRatio}{" "}
+              {quote.economics.massRatio.toFixed(1)} ·{" "}
+              {Math.round(quote.economics.propellantPerPayloadKg)} kg{" "}
+              {c.propellantPerKg} · {quote.economics.usdPerKg.toFixed(1)} ZYR/kg
+              · {Math.round(quote.densityKgM3)} kg/m³
+            </p>
 
             <Button className="mt-6 w-full rounded-full bg-pulse-blue text-white hover:bg-pulse-blue/90">
               {c.book}

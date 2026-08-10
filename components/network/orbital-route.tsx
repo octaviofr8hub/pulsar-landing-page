@@ -30,6 +30,12 @@ export interface OrbitalRouteMeshProps {
   active: boolean;
   /** Hay otra ruta fijada: esta pasa a segundo plano */
   dimmed: boolean;
+  /**
+   * Escala del trazo y del cohete. El globo se dibuja a distinto tamaño en cada
+   * sección; sin esto, un globo grande engorda la trayectoria y convierte el
+   * cohete en un juguete.
+   */
+  detailScale?: number;
   reducedMotion: boolean;
   onHover: (id: string | null) => void;
   onSelect: (id: string) => void;
@@ -45,6 +51,7 @@ export function OrbitalRouteMesh({
   radius,
   active,
   dimmed,
+  detailScale = 1,
   reducedMotion,
   onHover,
   onSelect,
@@ -95,7 +102,7 @@ export function OrbitalRouteMesh({
 
     const fade = smoothstep(0, 0.05, t) * (1 - smoothstep(0.95, 1, t));
     const dim = dimmed ? 0.28 : 1;
-    const targetScale = ROCKET_SCALE * (active ? 1.5 : 1) * fade;
+    const targetScale = ROCKET_SCALE * detailScale * (active ? 1.5 : 1) * fade;
     rocket.scale.setScalar(
       MathUtils.damp(rocket.scale.x, targetScale, 6, delta),
     );
@@ -134,7 +141,7 @@ export function OrbitalRouteMesh({
   return (
     <group>
       <mesh>
-        <tubeGeometry args={[curve, 128, 0.011, 8, false]} />
+        <tubeGeometry args={[curve, 128, 0.011 * detailScale, 8, false]} />
         <meshBasicMaterial
           color={active ? palette.flame : palette.accent}
           transparent

@@ -16,11 +16,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Section, Reveal, Eyebrow, IconStatStrip } from "./shared";
+import { Parallax } from "./motion";
 import { Button } from "./ui/button";
 import { GlobeCanvas, buildSingleRoute } from "@/components/globe/globe-canvas";
-import type { GlobeHub } from "@/components/globe/types";
+import type { GlobeHub, HorizonFraming } from "@/components/globe/types";
 import { useLanguage } from "@/components/i18n/use-language";
-import { greatCircleMidpoint } from "@/lib/geo";
 import {
   AIR_MODEL,
   airEstimate,
@@ -153,7 +153,6 @@ export function Race() {
     return {
       distanceKm,
       route: buildSingleRoute(from.coords, to.coords),
-      focus: greatCircleMidpoint(from.coords, to.coords),
       rows: [
         { key: "ship" as const, estimate: ship, fill: fillFor(ship.doorHours) },
         {
@@ -179,6 +178,11 @@ export function Race() {
     [from, to, lang],
   );
 
+  const horizon = useMemo<HorizonFraming>(
+    () => ({ route: { from: from.coords, to: to.coords } }),
+    [from, to],
+  );
+
   const swap = () => {
     setFromId(toId);
     setToId(fromId);
@@ -187,8 +191,9 @@ export function Race() {
 
   return (
     <Section id="solucion" className="overflow-hidden border-t border-border">
-      <div className="grid gap-12 lg:grid-cols-[minmax(0,440px)_1fr] lg:items-start">
-        <Reveal>
+      {/* z-10: el planeta de fondo sube por detrás de este bloque */}
+      <div className="relative z-10 grid gap-12 lg:grid-cols-[minmax(0,440px)_1fr] lg:items-start">
+        <Reveal blur>
           <Eyebrow>{c.eyebrow}</Eyebrow>
           <h2
             className="mt-5 font-display text-foreground"
@@ -227,7 +232,7 @@ export function Race() {
           </div>
         </Reveal>
 
-        <Reveal delay={0.1}>
+        <Reveal delay={0.1} direction="left" distance={44}>
           <div className="rounded-2xl border border-border bg-space-900/60 p-5 backdrop-blur md:p-6">
             <p className="text-center font-mono text-[12px] tracking-wide text-muted-foreground">
               {c.pick}
@@ -300,11 +305,20 @@ export function Race() {
         </Reveal>
       </div>
 
-      {/* El globo se recorta por abajo: el canvas es mucho más alto que su
-          contenedor, así que sólo asoma el hemisferio que cruza el arco y la
-          curvatura llega de lado a lado — el horizonte del mockup. */}
-      <div className="relative mt-10 h-[400px] overflow-hidden md:mt-14 md:h-[560px]">
-        <div className="absolute inset-x-0 top-0 h-[1500px]">
+      {/* El planeta es el fondo de la sección: `horizon` deja su limbo arriba
+          del todo, el arco lo cruza nivelado — origen a la izquierda, destino a
+          la derecha — y la tira de cifras se apoya encima. El canvas sale a
+          sangre del padding de la sección para que la curvatura llegue a los
+          bordes de la ventana. */}
+      <div className="relative -mx-6 mt-6 h-[400px] md:-mx-10 md:mt-8 md:h-[520px] lg:-mx-14 lg:h-[560px] xl:h-[620px]">
+        {/* El canvas arranca muy por encima de la banda: el planeta sube por
+            detrás del panel y es el fondo de la sección, no una franja al pie.
+            La ruta cae entera en la banda despejada. Los 40 px extra por abajo
+            son la holgura que necesita el paralaje para no destapar el borde. */}
+        <Parallax
+          className="absolute inset-x-0 -bottom-10 -top-[185px] md:-top-[240px] lg:-top-[300px] xl:-top-[420px]"
+          distance={34}
+        >
           <GlobeCanvas
             mode="orbit"
             textured
@@ -312,20 +326,24 @@ export function Race() {
             routes={[model.route]}
             hubs={hubs}
             onSelectHub={swap}
-            focusPoint={model.focus}
+            horizon={horizon}
+            sunDirection={[-0.55, 0.5, -0.85]}
+            detailScale={0.55}
             cameraDistance={8}
             dpr={[1, 1.5]}
-            tilt={[0.2, 0, 0.06]}
             showStars
           />
-        </div>
+        </Parallax>
 
+        {/* En escritorio, en el cielo por encima del apogeo. En móvil el arco
+            sube casi hasta el borde y no cabe ahí: baja a la cara oscura del
+            planeta, por debajo de la trayectoria. */}
         <motion.div
           key={`${fromId}-${toId}`}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="pointer-events-none absolute inset-x-0 top-6 text-center md:top-10"
+          className="pointer-events-none absolute inset-x-0 top-[46%] z-10 text-center md:top-3"
         >
           <div className="font-display text-[15px] text-pulse-cyan md:text-[17px]">
             {c.arcTitle}
@@ -335,10 +353,10 @@ export function Race() {
           </div>
         </motion.div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-space-950 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-gradient-to-t from-space-950 to-transparent" />
       </div>
 
-      <Reveal>
+      <Reveal className="relative z-10">
         <IconStatStrip
           className="-mt-4"
           items={[

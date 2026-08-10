@@ -1,7 +1,6 @@
 import { useTexture } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import { Color, Vector3, type ShaderMaterial } from "three";
+import { useMemo } from "react";
+import { Color, Vector3 } from "three";
 
 import { useScenePalette } from "@/components/scene/palette";
 
@@ -36,18 +35,17 @@ const EARTH_VERTEX = /* glsl */ `
 /**
  * Mezcla día/noche por orientación al sol: el lado iluminado muestra el mapa
  * diurno (océanos, continentes) y el lado oscuro las luces de ciudad emisivas.
- * Añade nubes en deriva, brillo especular del sol sobre el mar y un halo fresnel
- * teñido por el terminador — el look "black marble" de la referencia.
+ * Añade brillo especular del sol sobre el mar y un halo fresnel teñido por el
+ * terminador — el look "black marble" de la referencia. Sin capa de nubes: el
+ * usuario las quitó de todos los globos.
  */
 const EARTH_FRAGMENT = /* glsl */ `
   uniform sampler2D uDayTexture;
   uniform sampler2D uNightTexture;
   uniform sampler2D uSpecularTexture;
-  uniform sampler2D uCloudsTexture;
   uniform vec3 uSunDirection;
   uniform vec3 uAtmosphereDay;
   uniform vec3 uAtmosphereTwilight;
-  uniform float uTime;
 
   varying vec2 vUv;
   varying vec3 vWorldNormal;
@@ -68,15 +66,6 @@ const EARTH_FRAGMENT = /* glsl */ `
     // Luces de ciudad bien marcadas del lado nocturno.
     vec3 nightColor = pow(texture2D(uNightTexture, vUv).rgb, vec3(2.2)) * 3.2;
     color = mix(nightColor, dayColor, dayStrength);
-
-    // --- nubes tenues (fract = repeat sin mutar la textura); solo las densas ---
-    float clouds = texture2D(
-      uCloudsTexture,
-      vec2(fract(vUv.x + uTime * 0.004), vUv.y)
-    ).r;
-    clouds = smoothstep(0.55, 1.0, clouds);
-    float cloudLighting = mix(0.04, 1.0, dayStrength);
-    color = mix(color, vec3(0.92, 0.95, 1.0), clouds * cloudLighting * 0.28);
 
     // --- reflejo especular del sol sobre el océano ---
     float ocean = texture2D(uSpecularTexture, vUv).r;
@@ -100,18 +89,21 @@ const EARTH_FRAGMENT = /* glsl */ `
 
 export interface TexturedEarthProps {
   radius: number;
+  /** Dirección del sol; por defecto la de la escena (`SUN_DIRECTION`). */
+  sunDirection?: Vector3;
 }
 
 /** Tierra foto-real con texturas satelitales y shader día/noche. */
-export function TexturedEarth({ radius }: TexturedEarthProps) {
+export function TexturedEarth({
+  radius,
+  sunDirection = SUN_DIRECTION,
+}: TexturedEarthProps) {
   const palette = useScenePalette();
-  const materialRef = useRef<ShaderMaterial>(null);
 
-  const [dayMap, nightMap, specularMap, cloudsMap] = useTexture([
+  const [dayMap, nightMap, specularMap] = useTexture([
     "/planets/earth-day.jpg",
     "/planets/earth-night.png",
     "/planets/earth-specular.jpg",
-    "/planets/earth-clouds.jpg",
   ]);
 
   const uniforms = useMemo(
@@ -119,27 +111,17 @@ export function TexturedEarth({ radius }: TexturedEarthProps) {
       uDayTexture: { value: dayMap },
       uNightTexture: { value: nightMap },
       uSpecularTexture: { value: specularMap },
-      uCloudsTexture: { value: cloudsMap },
-      uSunDirection: { value: SUN_DIRECTION },
+      uSunDirection: { value: sunDirection },
       uAtmosphereDay: { value: new Color(palette.glow) },
       uAtmosphereTwilight: { value: new Color(palette.accent) },
-      uTime: { value: 0 },
     }),
-    [dayMap, nightMap, specularMap, cloudsMap, palette.glow, palette.accent],
+    [dayMap, nightMap, specularMap, palette.glow, palette.accent, sunDirection],
   );
-
-  useFrame((_, delta) => {
-    const material = materialRef.current;
-    if (material) {
-      material.uniforms.uTime.value += delta;
-    }
-  });
 
   return (
     <mesh>
       <sphereGeometry args={[radius, 96, 64]} />
       <shaderMaterial
-        ref={materialRef}
         vertexShader={EARTH_VERTEX}
         fragmentShader={EARTH_FRAGMENT}
         uniforms={uniforms}

@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Section, Reveal, Eyebrow } from "./shared";
+import { Stagger, StaggerItem } from "./motion";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 import { useLanguage } from "@/components/i18n/use-language";
@@ -184,7 +185,7 @@ export function Fleet() {
 
         {/* tarjetas + panel */}
         <Reveal delay={0.1}>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <Stagger className="grid gap-4 sm:grid-cols-3" gap={0.1}>
             {c.classes.map((cls, i) => (
               <FleetCard
                 key={cls.name}
@@ -198,7 +199,7 @@ export function Fleet() {
                 onSelect={() => setMass(CLASS_MASS[i])}
               />
             ))}
-          </div>
+          </Stagger>
 
           <div className="mt-4 rounded-2xl border border-border bg-space-900/50 p-6">
             <div className="grid gap-6 lg:grid-cols-2">
@@ -254,35 +255,38 @@ export function Fleet() {
       </div>
 
       {/* franja de métricas */}
-      <Reveal delay={0.15}>
-        <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-border pt-10 md:grid-cols-4">
-          {c.stats.map((s, i) => {
-            const Icon = STAT_ICONS[i];
-            return (
-              <div key={s.sub} className="flex items-center gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border text-pulse-cyan">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <div>
-                  <div
-                    className="text-foreground"
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: "1.25rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {s.value}
-                  </div>
-                  <div className="text-[12px] text-muted-foreground">
-                    {s.sub}
-                  </div>
+      <Stagger
+        className="mt-10 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-border pt-10 md:grid-cols-4"
+        gap={0.08}
+      >
+        {c.stats.map((s, i) => {
+          const Icon = STAT_ICONS[i];
+          return (
+            <StaggerItem
+              key={s.sub}
+              className="flex items-center gap-3"
+              distance={16}
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border text-pulse-cyan">
+                <Icon className="h-5 w-5" />
+              </span>
+              <div>
+                <div
+                  className="text-foreground"
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: "1.25rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  {s.value}
                 </div>
+                <div className="text-[12px] text-muted-foreground">{s.sub}</div>
               </div>
-            );
-          })}
-        </div>
-      </Reveal>
+            </StaggerItem>
+          );
+        })}
+      </Stagger>
     </Section>
   );
 }

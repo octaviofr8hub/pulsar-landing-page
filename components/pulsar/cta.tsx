@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Reveal } from "./shared";
+import { Stagger, StaggerItem } from "./motion";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useLanguage } from "@/components/i18n/use-language";
@@ -226,7 +227,7 @@ export function CTA() {
 
       <div className="relative mx-auto max-w-[1600px] px-6 py-24 md:px-10 lg:px-14">
         <div className="grid items-center gap-12 lg:grid-cols-2">
-          <Reveal>
+          <Reveal blur>
             <h2
               className="text-foreground"
               style={{
@@ -278,7 +279,7 @@ export function CTA() {
             </div>
           </Reveal>
 
-          <Reveal delay={0.1}>
+          <Reveal delay={0.1} direction="left" distance={40} scaleFrom={0.97}>
             <form
               onSubmit={submit}
               className="rounded-2xl border border-border bg-space-900/70 p-7 backdrop-blur-xl"
@@ -351,11 +352,18 @@ export function CTA() {
         </div>
 
         {/* franja de métricas */}
-        <div className="mt-16 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-border pt-10 md:grid-cols-4">
+        <Stagger
+          className="mt-16 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-border pt-10 md:grid-cols-4"
+          gap={0.08}
+        >
           {c.stats.map((s, i) => {
             const Icon = STAT_ICONS[i];
             return (
-              <div key={s.label} className="flex items-start gap-3">
+              <StaggerItem
+                key={s.label}
+                className="flex items-start gap-3"
+                distance={16}
+              >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border text-pulse-cyan">
                   <Icon className="h-5 w-5" />
                 </span>
@@ -377,10 +385,10 @@ export function CTA() {
                     {s.sub}
                   </div>
                 </div>
-              </div>
+              </StaggerItem>
             );
           })}
-        </div>
+        </Stagger>
       </div>
     </section>
   );

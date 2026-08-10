@@ -2,6 +2,7 @@
 
 import { useLanguage } from "@/components/i18n/use-language";
 import { PulsarLogo } from "@/components/ui/pulsar-mark";
+import { Stagger, StaggerItem } from "./motion";
 
 const COPY = {
   es: {
@@ -56,15 +57,18 @@ export function Footer() {
   return (
     <footer className="border-t border-border bg-space-950">
       <div className="mx-auto max-w-[1600px] px-6 py-16 md:px-10 lg:px-14">
-        <div className="grid gap-10 md:grid-cols-[1.5fr_repeat(4,1fr)]">
-          <div>
+        <Stagger
+          className="grid gap-10 md:grid-cols-[1.5fr_repeat(4,1fr)]"
+          gap={0.07}
+        >
+          <StaggerItem distance={16}>
             <PulsarLogo size="sm" />
             <p className="mt-4 max-w-xs text-[14px] text-muted-foreground">
               {c.desc}
             </p>
-          </div>
+          </StaggerItem>
           {c.cols.map((col) => (
-            <div key={col.title}>
+            <StaggerItem key={col.title} distance={16}>
               <div className="text-[13px] text-foreground">{col.title}</div>
               <ul className="mt-3 space-y-2">
                 {col.links.map((l) => (
@@ -78,9 +82,9 @@ export function Footer() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
         <div className="mt-12 flex flex-col justify-between gap-3 border-t border-border pt-6 text-[13px] text-muted-foreground sm:flex-row">
           <span>{c.rights}</span>
           <span>{c.tagline}</span>

@@ -208,6 +208,12 @@
   }
 }
 
+/* La navbar es fija: sin esto, saltar a una sección la deja bajo la barra. */
+section[id],
+footer[id] {
+  scroll-margin-top: 4rem;
+}
+
 /* Sin capa: gana sobre la utilidad de Tailwind, que sí va en `@layer`. */
 @media (prefers-reduced-motion: reduce) {
   .pulsar-beat {

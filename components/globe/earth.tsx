@@ -1,4 +1,4 @@
-import { AdditiveBlending } from "three";
+import { AdditiveBlending, type Vector3 } from "three";
 
 import { CountryLines } from "@/components/network/country-lines";
 import { useScenePalette } from "@/components/scene/palette";
@@ -12,6 +12,8 @@ export interface EarthProps {
   /** Globos ambientales usan menos densidad de luces y sin retícula. */
   quality?: "high" | "low";
   lightsPointScale?: number;
+  /** Dirección del sol; por defecto la de la escena (`SUN_DIRECTION`). */
+  sunDirection?: Vector3;
   /**
    * Modo "black marble": continentes rellenos con textura procedural + luces de
    * ciudad emisivas (se parece a la referencia). El modo por defecto (líneas de
@@ -30,6 +32,7 @@ export function Earth({
   radius,
   quality = "high",
   lightsPointScale,
+  sunDirection,
   textured = false,
 }: EarthProps) {
   const palette = useScenePalette();
@@ -37,7 +40,7 @@ export function Earth({
   return (
     <group>
       {textured ? (
-        <TexturedEarth radius={radius} />
+        <TexturedEarth radius={radius} sunDirection={sunDirection} />
       ) : (
         <mesh>
           <sphereGeometry args={[radius, 64, 48]} />
@@ -73,6 +76,7 @@ export function Earth({
 
       <Atmosphere
         radius={radius}
+        sunDirection={sunDirection}
         dayColor={palette.glow}
         twilightColor={palette.flame}
         thickness={0.2}

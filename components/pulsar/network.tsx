@@ -229,7 +229,7 @@ export function Network() {
       {/* contenido flotando sobre el globo */}
       <div className="pointer-events-none relative mx-auto grid min-h-[720px] max-w-[1600px] gap-8 px-6 py-16 md:px-10 lg:grid-cols-[320px_minmax(0,1fr)_340px] lg:items-start lg:px-14">
         {/* columna de texto */}
-        <Reveal className="pointer-events-none">
+        <Reveal className="pointer-events-none" direction="right" distance={40}>
           <Eyebrow>{c.eyebrow}</Eyebrow>
           <h2
             className="mt-5 text-foreground"
@@ -293,7 +293,12 @@ export function Network() {
         <div aria-hidden className="hidden lg:block" />
 
         {/* panel de nodo + lista de hubs */}
-        <Reveal delay={0.1} className="pointer-events-auto">
+        <Reveal
+          delay={0.1}
+          className="pointer-events-auto"
+          direction="left"
+          distance={40}
+        >
           <motion.div
             key={activeId}
             initial={{ opacity: 0, y: 12 }}

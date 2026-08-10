@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { LanguageToggle } from "./language-toggle";
 import { useLanguage } from "@/components/i18n/use-language";
 import { PulsarLogo } from "@/components/ui/pulsar-mark";
+import { ScrollProgress } from "./motion";
 
 const COPY = {
   es: {
@@ -81,6 +82,9 @@ export function Navbar() {
           </Button>
         </div>
       </div>
+
+      {/* Progreso de lectura: subraya el borde inferior de la navbar. */}
+      <ScrollProgress />
     </header>
   );
 }

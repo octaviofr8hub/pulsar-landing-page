@@ -1,6 +1,6 @@
 "use client";
 
-import { OrbitControls, Stars } from "@react-three/drei";
+import { OrbitControls, PerspectiveCamera, Stars } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   Suspense,
@@ -18,6 +18,11 @@ import { SceneFallback } from "@/components/scene/scene-fallback";
 import { useScenePalette } from "@/components/scene/palette";
 import { latLonToVector3 } from "@/lib/geo";
 import {
+  levelRouteQuaternion,
+  solveHorizonFraming,
+  subCameraElevation,
+} from "@/lib/globe-framing";
+import {
   EARTH_RADIUS_KM,
   greatCircleKm,
   suborbitalProfile,
@@ -31,10 +36,30 @@ import { useInView, useIsClient, useReducedMotion } from "./hooks";
 import { HubMarkers } from "./hub-markers";
 import { SUN_POSITION } from "./textured-earth";
 import { ZoomControls } from "./zoom-controls";
-import type { GlobeHub } from "./types";
+import type { GlobeHub, HorizonFraming } from "./types";
 
 const GLOBE_RADIUS = 2;
 const HERO_DIR = new Vector3(0, 0.12, 1).normalize();
+
+/**
+ * Altura de la cámara del encuadre de horizonte. A la altura del eje y sin
+ * `lookAt`, la proyección del globo hundido es exacta: lo que baje el globo es
+ * exactamente lo que baja en pantalla.
+ */
+const HORIZON_CAMERA_Y = 0;
+
+/**
+ * Valores por defecto del encuadre de horizonte (ver `HorizonFraming`).
+ * Calibrados sobre los 45 pares de puertos del simulador: el limbo queda arriba
+ * (el planeta es el fondo, no una franja al pie), y aun así entran el apogeo por
+ * arriba y las dos ciudades con su etiqueta por abajo, en todos los anchos.
+ */
+const HORIZON_DEFAULTS = {
+  widthFraction: 0.36,
+  heightFraction: 0.8,
+  horizonLine: 0.28,
+  elevation: 18,
+} as const;
 
 /** Estados clave de la cámara del hero: [progreso, distancia, objetivo]. */
 const HERO_KEYS: {
@@ -105,6 +130,9 @@ interface GlobeSceneProps {
   routes: readonly OrbitalRoute[] | null;
   focusHubId: string | null;
   focusPoint: GeoPoint | null;
+  horizon: HorizonFraming | null;
+  sunDirection: Vector3 | null;
+  detailScale: number;
   showStars: boolean;
   cameraDistance: number;
   zoomProgress: number;
@@ -134,6 +162,9 @@ function GlobeScene({
   routes,
   focusHubId,
   focusPoint,
+  horizon,
+  sunDirection,
+  detailScale,
   showStars,
   cameraDistance,
   zoomProgress,
@@ -151,6 +182,8 @@ function GlobeScene({
   const spinRef = useRef<Group>(null);
   const spinAccum = useRef(0);
   const orbitingRef = useRef(false);
+  const posedRef = useRef(false);
+  const size = useThree((s) => s.size);
 
   const focusYaw = useMemo(() => {
     const coords =
@@ -160,10 +193,51 @@ function GlobeScene({
     return -Math.atan2(v.x, v.z);
   }, [focusHubId, focusPoint, hubs]);
 
+  // Encuadre de horizonte: lente y hundimiento del globo salen del tamaño real
+  // del canvas, y la ruta se nivela sobre el limbo con un cuaternión.
+  const framing = useMemo(
+    () =>
+      horizon
+        ? solveHorizonFraming({
+            width: size.width,
+            height: size.height,
+            globeRadius: GLOBE_RADIUS,
+            cameraDistance,
+            widthFraction:
+              horizon.widthFraction ?? HORIZON_DEFAULTS.widthFraction,
+            heightFraction:
+              horizon.heightFraction ?? HORIZON_DEFAULTS.heightFraction,
+            horizonLine: horizon.horizonLine ?? HORIZON_DEFAULTS.horizonLine,
+          })
+        : null,
+    [horizon, size.width, size.height, cameraDistance],
+  );
+
+  const horizonPose = useMemo(() => {
+    if (!horizon || !framing) return null;
+    return levelRouteQuaternion(
+      horizon.route.from,
+      horizon.route.to,
+      horizon.elevation ?? HORIZON_DEFAULTS.elevation,
+      subCameraElevation(HORIZON_CAMERA_Y, cameraDistance, framing.offsetY),
+    );
+  }, [horizon, framing, cameraDistance]);
+
   useFrame((_, delta) => {
     const g = spinRef.current;
     if (!g) return;
     const spin = autoSpin ? spinSpeed * (reducedMotion ? 0.3 : 1) : 0;
+
+    if (horizonPose) {
+      // Al montar se coloca de golpe; al cambiar de ruta gira hasta la nueva.
+      if (posedRef.current) {
+        g.quaternion.slerp(horizonPose, Math.min(1, delta * 2.5));
+      } else {
+        g.quaternion.copy(horizonPose);
+        posedRef.current = true;
+      }
+      return;
+    }
 
     if (mode === "hero") {
       spinAccum.current += delta * spin;
@@ -191,7 +265,14 @@ function GlobeScene({
   return (
     <>
       <ambientLight intensity={0.18} />
-      <directionalLight position={SUN_POSITION} intensity={2.4} />
+      <directionalLight
+        position={
+          sunDirection
+            ? [sunDirection.x * 10, sunDirection.y * 10, sunDirection.z * 10]
+            : SUN_POSITION
+        }
+        intensity={2.4}
+      />
       <pointLight
         position={[-6, -1, -4]}
         intensity={9}
@@ -209,6 +290,17 @@ function GlobeScene({
           saturation={0}
           fade
           speed={reducedMotion ? 0 : 0.3}
+        />
+      )}
+
+      {/* Cámara propia del encuadre: la lente sale del tamaño del canvas y mira
+          de frente (sin `lookAt`), que es la geometría que resuelve el módulo
+          de encuadre. */}
+      {framing && (
+        <PerspectiveCamera
+          makeDefault
+          fov={framing.fov}
+          position={[0, HORIZON_CAMERA_Y, cameraDistance]}
         />
       )}
 
@@ -233,35 +325,39 @@ function GlobeScene({
         />
       )}
 
-      <group rotation={mode === "hero" ? [0, 0, 0] : tilt}>
-        <group ref={spinRef} rotation={mode === "hero" ? [0, 0, 0] : [0, 0, 0]}>
-          <Earth
-            radius={GLOBE_RADIUS}
-            quality={quality}
-            textured={textured}
-            lightsPointScale={lightsPointScale}
-          />
-          {hubs && onSelectHub && (
-            <HubMarkers
-              hubs={hubs}
+      <group position={[0, framing?.offsetY ?? 0, 0]}>
+        <group rotation={mode === "hero" || horizonPose ? [0, 0, 0] : tilt}>
+          <group ref={spinRef}>
+            <Earth
               radius={GLOBE_RADIUS}
-              activeId={activeHubId}
-              showLabels={showHubLabels}
-              onSelect={onSelectHub}
+              quality={quality}
+              textured={textured}
+              lightsPointScale={lightsPointScale}
+              sunDirection={sunDirection ?? undefined}
             />
-          )}
-          {routes?.map((route) => (
-            <OrbitalRouteMesh
-              key={route.id}
-              route={route}
-              radius={GLOBE_RADIUS}
-              active={false}
-              dimmed={false}
-              reducedMotion={reducedMotion}
-              onHover={() => undefined}
-              onSelect={() => undefined}
-            />
-          ))}
+            {hubs && onSelectHub && (
+              <HubMarkers
+                hubs={hubs}
+                radius={GLOBE_RADIUS}
+                activeId={activeHubId}
+                showLabels={showHubLabels}
+                onSelect={onSelectHub}
+              />
+            )}
+            {routes?.map((route) => (
+              <OrbitalRouteMesh
+                key={route.id}
+                route={route}
+                radius={GLOBE_RADIUS}
+                active={false}
+                dimmed={false}
+                detailScale={detailScale}
+                reducedMotion={reducedMotion}
+                onHover={() => undefined}
+                onSelect={() => undefined}
+              />
+            ))}
+          </group>
         </group>
       </group>
 
@@ -297,6 +393,22 @@ export interface GlobeCanvasProps {
    * prioridad sobre `focusHubId` — útil para encuadrar el centro de una ruta.
    */
   focusPoint?: GeoPoint | null;
+  /**
+   * Encuadre de horizonte: hunde el globo hasta dejar sólo su casquete superior
+   * y nivela el arco de la ruta sobre él. Sustituye a `tilt` y `focusPoint`.
+   */
+  horizon?: HorizonFraming | null;
+  /**
+   * Dirección del sol para este canvas. Por defecto la de la escena, que
+   * ilumina el hemisferio de frente; ponerlo detrás del globo deja la cara
+   * visible en noche con el limbo encendido.
+   */
+  sunDirection?: [number, number, number] | null;
+  /**
+   * Escala del trazo de las rutas y del cohete. Bajarlo cuando el globo se
+   * dibuja muy grande, para que la trayectoria siga siendo una línea fina.
+   */
+  detailScale?: number;
   /** Campo de estrellas de fondo (sólo donde el canvas es protagonista). */
   showStars?: boolean;
   zoomProgress?: number;
@@ -341,6 +453,9 @@ export function GlobeCanvas({
   routes,
   focusHubId = null,
   focusPoint = null,
+  horizon = null,
+  sunDirection = null,
+  detailScale = 1,
   showStars = false,
   zoomProgress = 0,
   quality = "high",
@@ -367,6 +482,10 @@ export function GlobeCanvas({
   });
   const mounted = useIsClient();
   const reducedMotion = useReducedMotion();
+  const sunVector = useMemo(
+    () => (sunDirection ? new Vector3(...sunDirection).normalize() : null),
+    [sunDirection],
+  );
   const [containerRef, inView] = useInView<HTMLDivElement>();
 
   const zoomBy = (factor: number) => {
@@ -445,6 +564,9 @@ export function GlobeCanvas({
                 routes={routes ?? null}
                 focusHubId={focusHubId}
                 focusPoint={focusPoint}
+                horizon={horizon}
+                sunDirection={sunVector}
+                detailScale={detailScale}
                 showStars={showStars}
                 cameraDistance={cameraDistance}
                 zoomProgress={zoomProgress}

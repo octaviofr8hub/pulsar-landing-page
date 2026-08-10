@@ -198,7 +198,7 @@ export function Journey() {
 
       {/* Una fase a la vez: el marco tiene la proporción nativa de la imagen y
           las diapositivas se desplazan dentro de él. */}
-      <Reveal delay={0.1}>
+      <Reveal delay={0.1} scaleFrom={0.96} distance={40}>
         <div
           className={`relative mt-10 w-full overflow-hidden rounded-2xl border border-border bg-space-900 ${MEDIA_ASPECT}`}
           onMouseEnter={() => setPaused(true)}

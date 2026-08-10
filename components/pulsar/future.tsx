@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Globe2, Orbit, CalendarClock, type LucideIcon } from "lucide-react";
 import { Section, Reveal, Eyebrow } from "./shared";
+import { Stagger, StaggerItem } from "./motion";
 import { Slider } from "./ui/slider";
 import { OrbitDiorama } from "@/components/globe/orbit-diorama";
 import { GlobeHint } from "@/components/globe/globe-hint";
@@ -86,18 +87,36 @@ export function Future() {
             )}
           </h2>
           <p className="mt-5 text-[16px] text-muted-foreground">{c.para}</p>
-          <div className="mt-8 space-y-3 text-[14px]">
-            <Feat icon={Globe2} label={c.feats[0].label} val={c.feats[0].val} />
-            <Feat icon={Orbit} label={c.feats[1].label} val={c.feats[1].val} />
-            <Feat
-              icon={CalendarClock}
-              label={c.feats[2].label}
-              val={c.feats[2].val}
-            />
-          </div>
+          <Stagger
+            className="mt-8 space-y-3 text-[14px]"
+            gap={0.1}
+            delay={0.15}
+          >
+            <StaggerItem distance={16}>
+              <Feat
+                icon={Globe2}
+                label={c.feats[0].label}
+                val={c.feats[0].val}
+              />
+            </StaggerItem>
+            <StaggerItem distance={16}>
+              <Feat
+                icon={Orbit}
+                label={c.feats[1].label}
+                val={c.feats[1].val}
+              />
+            </StaggerItem>
+            <StaggerItem distance={16}>
+              <Feat
+                icon={CalendarClock}
+                label={c.feats[2].label}
+                val={c.feats[2].val}
+              />
+            </StaggerItem>
+          </Stagger>
         </Reveal>
 
-        <Reveal delay={0.1}>
+        <Reveal delay={0.1} direction="left" distance={44} scaleFrom={0.97}>
           <div className="rounded-2xl border border-border bg-space-950/70 p-4">
             <div className="relative h-[360px] overflow-hidden rounded-xl bg-[radial-gradient(circle_at_35%_45%,rgba(59,130,246,0.10),transparent_65%)] sm:h-[420px]">
               <OrbitDiorama progress={t} labels={c.labels} />

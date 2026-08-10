@@ -203,7 +203,7 @@ export function Problem() {
   return (
     <Section id="problema" className="overflow-hidden border-t border-border">
       <div className="relative grid gap-12 lg:grid-cols-[minmax(0,420px)_1fr] lg:items-center">
-        <Reveal>
+        <Reveal blur>
           <Eyebrow>{c.eyebrow}</Eyebrow>
           <h2
             className="mt-5 text-foreground"
@@ -240,7 +240,7 @@ export function Problem() {
           </p>
         </Reveal>
 
-        <Reveal delay={0.1}>
+        <Reveal delay={0.1} direction="left" distance={44} scaleFrom={0.97}>
           <div className="relative overflow-hidden rounded-2xl border border-border bg-space-900/60 p-4 backdrop-blur">
             <svg viewBox="0 0 1000 500" className="w-full">
               <defs>

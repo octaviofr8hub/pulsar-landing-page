@@ -1,8 +1,14 @@
 "use client";
 
-import { animate, motion, useInView, useMotionValue } from "framer-motion";
+import { animate, useInView, useMotionValue } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+
+import { Stagger, StaggerItem } from "./motion";
+
+// La entrada de bloques vive en ./motion junto al resto de la gramática de
+// scroll; se reexporta aquí porque todas las secciones ya la importan de shared.
+export { Reveal } from "./motion";
 
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
@@ -32,28 +38,6 @@ export function Section({
   );
 }
 
-export function Reveal({
-  children,
-  delay = 0,
-  className = "",
-}: {
-  children: ReactNode;
-  delay?: number;
-  className?: string;
-}) {
-  return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
 export function StatStrip({
   items,
   /** 4 para anchos completos; 2 cuando la tira vive en una columna estrecha. */
@@ -63,20 +47,21 @@ export function StatStrip({
   columns?: 2 | 4;
 }) {
   return (
-    <div
+    <Stagger
+      gap={0.07}
       className={`grid grid-cols-2 divide-x divide-y divide-border rounded-xl border border-border bg-space-900/60 backdrop-blur ${
         columns === 4 ? "md:grid-cols-4 md:divide-y-0" : ""
       }`}
     >
       {items.map((it) => (
-        <div key={it.label} className="px-5 py-4">
+        <StaggerItem key={it.label} className="px-5 py-4" distance={14}>
           <div className="font-display text-pulse-cyan">{it.value}</div>
           <div className="text-[13px] leading-snug text-muted-foreground">
             {it.label}
           </div>
-        </div>
+        </StaggerItem>
       ))}
-    </div>
+    </Stagger>
   );
 }
 
@@ -99,14 +84,16 @@ export function IconStatStrip({
   className?: string;
 }) {
   return (
-    <div
+    <Stagger
+      gap={0.08}
       className={`grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4 ${className}`}
     >
       {items.map((it) => {
         const Icon = it.icon;
         return (
-          <div
+          <StaggerItem
             key={it.label}
+            distance={16}
             className="flex items-center gap-4 bg-space-900/85 px-5 py-5 backdrop-blur"
           >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-pulse-blue/40 text-pulse-cyan">
@@ -125,10 +112,10 @@ export function IconStatStrip({
                 {it.label}
               </div>
             </div>
-          </div>
+          </StaggerItem>
         );
       })}
-    </div>
+    </Stagger>
   );
 }
 

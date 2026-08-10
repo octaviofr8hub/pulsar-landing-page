@@ -17,6 +17,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Section, Reveal, Eyebrow } from "./shared";
+import { Stagger, StaggerItem } from "./motion";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 import {
@@ -690,11 +691,16 @@ export function Platform() {
           </div>
 
           {/* scores */}
-          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Stagger
+            className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4"
+            gap={0.07}
+          >
             {c.scores.map((s, i) => (
-              <ScoreCard key={s.label} score={s} icon={SCORE_ICONS[i]} />
+              <StaggerItem key={s.label} distance={16}>
+                <ScoreCard score={s} icon={SCORE_ICONS[i]} />
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
 
           {/* paneles */}
           <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr]">

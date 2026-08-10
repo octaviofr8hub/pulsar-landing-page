@@ -5,6 +5,7 @@ import { Play, ArrowRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { GlobeCanvas } from "@/components/globe/globe-canvas";
 import { StatStrip } from "./shared";
+import { ScrollFade } from "./motion";
 import { useLanguage } from "@/components/i18n/use-language";
 
 const COPY = {
@@ -81,7 +82,9 @@ export function Hero() {
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-space-950 via-space-950/55 to-transparent" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-space-950 via-transparent to-transparent" />
 
-      <div className="pointer-events-none relative mx-auto flex h-full max-w-[1600px] flex-col justify-center px-6 md:px-10 lg:px-14">
+      {/* El texto se despide subiendo mientras el globo se queda: el scroll
+          separa las dos capas en vez de arrastrarlas juntas. */}
+      <ScrollFade className="pointer-events-none relative mx-auto flex h-full max-w-[1600px] flex-col justify-center px-6 md:px-10 lg:px-14">
         <motion.div
           className="max-w-2xl"
           initial={{ opacity: 0, y: 24 }}
@@ -134,7 +137,7 @@ export function Hero() {
         <div className="pointer-events-auto absolute inset-x-6 bottom-8 mx-auto max-w-[1600px] md:inset-x-10 lg:inset-x-14">
           <StatStrip items={[...c.stats]} />
         </div>
-      </div>
+      </ScrollFade>
     </section>
   );
 }

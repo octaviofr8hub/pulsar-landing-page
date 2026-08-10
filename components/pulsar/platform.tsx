@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { QuoteBox } from "./quote-box";
+import { CargoBay } from "@/components/cargo/cargo-bay";
 import { GlobeCanvas, buildSingleRoute } from "@/components/globe/globe-canvas";
 import type { GlobeHub } from "@/components/globe/types";
 import { useLanguage } from "@/components/i18n/use-language";
@@ -479,11 +479,9 @@ export function Platform() {
             </div>
 
             <div className="mt-6 grid gap-6 md:grid-cols-2">
-              {/* caja 3D + dimensiones */}
+              {/* bahía jugable + dimensiones del envío */}
               <div>
-                <div className="relative h-52 rounded-xl border border-border bg-space-950/50">
-                  <QuoteBox />
-                </div>
+                <CargoBay />
                 <div className="mt-3 flex items-center justify-between rounded-lg border border-border bg-space-950/40 px-3 py-2 text-[12px]">
                   <span className="text-muted-foreground">{c.volumetric}</span>
                   <span className="text-foreground">

@@ -9,6 +9,7 @@ import {
   DoubleSide,
   type Group,
   type Mesh,
+  type PointLight,
 } from "three";
 
 import {
@@ -27,6 +28,8 @@ const FAIRING_RADIUS = Math.SQRT2 * (BAY_SIZE / 2) + 0.25;
 /** Altura del cilindro de la cofia, por encima de la última cubierta. */
 const FAIRING_HEIGHT = BAY_LEVELS + 0.5;
 const NOSE_HEIGHT = 2.6;
+/** Encendido antes de que el cohete se mueva, en segundos. */
+const IGNITION_SECONDS = 0.9;
 
 /** Centro de una posición de la cofia en coordenadas de escena. */
 function cellPosition(
@@ -266,6 +269,70 @@ function DropGuide({
   );
 }
 
+/**
+ * Pluma de escape del despegue. Nace justo bajo la plataforma —los motores
+ * quedan fuera de cuadro— y crece con el encendido, con parpadeo y una luz que
+ * ilumina la panza del cohete.
+ */
+function ExhaustPlume({
+  active,
+  reducedMotion,
+}: {
+  active: boolean;
+  reducedMotion: boolean;
+}) {
+  const coneRef = useRef<Mesh>(null);
+  const lightRef = useRef<PointLight>(null);
+  const life = useRef(0);
+
+  useFrame((state, delta) => {
+    life.current = active
+      ? Math.min(1, life.current + delta * 2.4)
+      : Math.max(0, life.current - delta * 4);
+
+    const flicker = reducedMotion
+      ? 1
+      : 1 + Math.sin(state.clock.elapsedTime * 42) * 0.14;
+    const cone = coneRef.current;
+    if (cone) {
+      cone.visible = life.current > 0.01;
+      const scale = life.current * flicker;
+      cone.scale.set(scale, life.current * (0.7 + life.current * 0.6), scale);
+      const material = cone.material;
+      if (!Array.isArray(material) && "opacity" in material) {
+        material.opacity = life.current * 0.7;
+      }
+    }
+    if (lightRef.current) {
+      lightRef.current.intensity = life.current * 130 * flicker;
+    }
+  });
+
+  return (
+    <group position={[0, -1.1, 0]}>
+      <mesh ref={coneRef} rotation={[Math.PI, 0, 0]} visible={false}>
+        <coneGeometry args={[1.05, 4.4, 32, 1, true]} />
+        <meshBasicMaterial
+          color="#93c5fd"
+          transparent
+          opacity={0}
+          side={DoubleSide}
+          blending={AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+      <pointLight
+        ref={lightRef}
+        position={[0, -0.5, 0]}
+        color="#7dd3fc"
+        intensity={0}
+        distance={16}
+        decay={1.6}
+      />
+    </group>
+  );
+}
+
 /** Destello de cubierta consolidada: un disco que sube y se apaga. */
 function LevelFlash({ flash, levels }: { flash: number; levels: number[] }) {
   const groupRef = useRef<Group>(null);
@@ -330,6 +397,8 @@ export interface BaySceneProps {
   reducedMotion: boolean;
   /** Gira solo hasta que el usuario toma el control de la vista. */
   autoRotate: boolean;
+  /** Secuencia de despegue en marcha: encendido y ascenso. */
+  launching: boolean;
   onOrbitStart: () => void;
   /** El puntero sobrevuela una posición de la planta. */
   onHoverCell: (x: number, z: number) => void;
@@ -344,10 +413,13 @@ export function BayScene({
   flashLevels,
   reducedMotion,
   autoRotate,
+  launching,
   onOrbitStart,
   onHoverCell,
 }: BaySceneProps) {
   const activeRef = useRef<Group>(null);
+  const launchRef = useRef<Group>(null);
+  const launchTime = useRef(0);
 
   /** Posiciones ocupadas, agrupadas por tipo: una instancia por familia. */
   const stowed = useMemo(() => {
@@ -373,6 +445,28 @@ export function BayScene({
       ? 0
       : Math.sin(state.clock.elapsedTime * 2.2) * 0.12;
     group.position.y = float;
+  });
+
+  /**
+   * Despegue: primero el encendido —el cohete vibra sobre la plataforma— y
+   * después el ascenso, con la altura creciendo con el cuadrado del tiempo
+   * porque un lanzador sale acelerando, no a velocidad constante.
+   */
+  useFrame((_, delta) => {
+    const group = launchRef.current;
+    if (!group) return;
+
+    if (!launching) {
+      launchTime.current = 0;
+      group.position.set(0, 0, 0);
+      return;
+    }
+
+    launchTime.current += delta;
+    const rise = Math.max(0, launchTime.current - IGNITION_SECONDS);
+    group.position.y = rise * rise * 11;
+    const shaking = launchTime.current < IGNITION_SECONDS && !reducedMotion;
+    group.position.x = shaking ? Math.sin(launchTime.current * 70) * 0.045 : 0;
   });
 
   const handleMove = (event: ThreeEvent<PointerEvent>) => {
@@ -417,67 +511,79 @@ export function BayScene({
         maxPolarAngle={Math.PI * 0.52}
       />
 
-      <Fairing />
+      {/* La plataforma se queda; lo que despega es el cohete. */}
       <BayFloor />
 
-      {/* Plano invisible de la planta: convierte el puntero en una posición. */}
-      <mesh
-        position={[0, 0.01, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        onPointerMove={handleMove}
-      >
-        <planeGeometry args={[BAY_SIZE + 6, BAY_SIZE + 6]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
+      <group ref={launchRef}>
+        <Fairing />
+        <ExhaustPlume active={launching} reducedMotion={reducedMotion} />
 
-      {stowed.map(([kind, cells]) => (
-        <Instances
-          key={kind}
-          limit={BAY_SIZE * BAY_SIZE * BAY_LEVELS}
-          range={cells.length}
+        {/* Plano invisible de la planta: convierte el puntero en una posición. */}
+        <mesh
+          position={[0, 0.01, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          onPointerMove={handleMove}
         >
-          <boxGeometry args={[0.92, 0.92, 0.92]} />
-          <meshStandardMaterial
-            color={PIECE_COLOR[kind]}
-            roughness={0.5}
-            metalness={0.3}
-            emissive={PIECE_COLOR[kind]}
-            emissiveIntensity={0.16}
-          />
-          {cells.map(([x, y, z]) => (
-            <Instance key={`${x}-${y}-${z}`} position={cellPosition(x, y, z)} />
-          ))}
-        </Instances>
-      ))}
+          <planeGeometry args={[BAY_SIZE + 6, BAY_SIZE + 6]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
 
-      {ghost && (
-        <>
-          {pieceCells(ghost).map(([x, y, z]) => (
-            <Pallet
-              key={`ghost-${x}-${z}`}
-              position={cellPosition(x, y, z)}
-              color={PIECE_COLOR[ghost.kind]}
-              ghost
+        {stowed.map(([kind, cells]) => (
+          <Instances
+            key={kind}
+            limit={BAY_SIZE * BAY_SIZE * BAY_LEVELS}
+            range={cells.length}
+          >
+            <boxGeometry args={[0.92, 0.92, 0.92]} />
+            <meshStandardMaterial
+              color={PIECE_COLOR[kind]}
+              roughness={0.5}
+              metalness={0.3}
+              emissive={PIECE_COLOR[kind]}
+              emissiveIntensity={0.16}
             />
-          ))}
-          {active && (
-            <DropGuide cells={pieceCells(ghost)} from={active.y} to={ghost.y} />
-          )}
-        </>
-      )}
+            {cells.map(([x, y, z]) => (
+              <Instance
+                key={`${x}-${y}-${z}`}
+                position={cellPosition(x, y, z)}
+              />
+            ))}
+          </Instances>
+        ))}
 
-      <group ref={activeRef}>
-        {active &&
-          pieceCells(active).map(([x, y, z]) => (
-            <Pallet
-              key={`active-${x}-${z}`}
-              position={cellPosition(x, y, z)}
-              color={PIECE_COLOR[active.kind]}
-            />
-          ))}
+        {ghost && (
+          <>
+            {pieceCells(ghost).map(([x, y, z]) => (
+              <Pallet
+                key={`ghost-${x}-${z}`}
+                position={cellPosition(x, y, z)}
+                color={PIECE_COLOR[ghost.kind]}
+                ghost
+              />
+            ))}
+            {active && (
+              <DropGuide
+                cells={pieceCells(ghost)}
+                from={active.y}
+                to={ghost.y}
+              />
+            )}
+          </>
+        )}
+
+        <group ref={activeRef}>
+          {active &&
+            pieceCells(active).map(([x, y, z]) => (
+              <Pallet
+                key={`active-${x}-${z}`}
+                position={cellPosition(x, y, z)}
+                color={PIECE_COLOR[active.kind]}
+              />
+            ))}
+        </group>
+
+        <LevelFlash flash={flash} levels={flashLevels} />
       </group>
-
-      <LevelFlash flash={flash} levels={flashLevels} />
     </>
   );
 }

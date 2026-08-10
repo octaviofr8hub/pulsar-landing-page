@@ -1,37 +1,64 @@
-import { AdditiveBlending } from "three";
+import { useMemo } from "react";
+import { AdditiveBlending, Vector2 } from "three";
 
 import { useScenePalette, type ScenePalette } from "./palette";
 
 export type RocketVariant = "solid" | "wire";
 
-type PartRole = "hull" | "accent" | "dark";
+/** Radio del fuselaje. Todo el perfil se mide contra él. */
+const HULL_RADIUS = 0.34;
+/** Alto total ≈ 4 unidades, con el centro de masas en el origen. */
+const BASE_Y = -2;
+const NOSE_START_Y = 0.95;
+const TIP_Y = 2;
 
-type CylinderArgs = readonly [number, number, number, number];
+/**
+ * Perfil del lanzador, de la tobera a la punta, para revolucionarlo con
+ * `latheGeometry`.
+ *
+ * Antes eran seis cilindros apilados: se leía como un juguete porque cada
+ * cambio de radio era un escalón. Un perfil revolucionado da la silueta
+ * continua de un lanzador reutilizable de verdad — ojiva elíptica, fuselaje
+ * recto, popa recogida y campana de motor.
+ */
+function useRocketProfile(): Vector2[] {
+  return useMemo(() => {
+    const points: Vector2[] = [];
 
-interface BodyPart {
-  args: CylinderArgs;
-  position: readonly [number, number, number];
-  role: PartRole;
+    // Campana del motor: se abre hacia abajo.
+    points.push(new Vector2(0, BASE_Y));
+    points.push(new Vector2(0.26, BASE_Y + 0.02));
+    points.push(new Vector2(0.2, BASE_Y + 0.26));
+    points.push(new Vector2(0.15, BASE_Y + 0.34));
+
+    // Sección de motores y popa recogida hacia el fuselaje.
+    points.push(new Vector2(0.3, BASE_Y + 0.36));
+    points.push(new Vector2(0.33, BASE_Y + 0.5));
+    points.push(new Vector2(HULL_RADIUS, BASE_Y + 0.72));
+
+    // Fuselaje recto.
+    points.push(new Vector2(HULL_RADIUS, NOSE_START_Y));
+
+    // Ojiva elíptica: r = R · √(1 − t²). Es la curva que hace que un cohete
+    // parezca un cohete y no un lápiz.
+    const segments = 14;
+    for (let i = 1; i <= segments; i += 1) {
+      const t = i / segments;
+      const y = NOSE_START_Y + (TIP_Y - NOSE_START_Y) * t;
+      const radius = HULL_RADIUS * Math.sqrt(Math.max(0, 1 - t * t));
+      points.push(new Vector2(radius, y));
+    }
+
+    return points;
+  }, []);
 }
 
-const BODY_PARTS: readonly BodyPart[] = [
-  { args: [0.34, 0.42, 2.4, 48], position: [0, 0, 0], role: "hull" },
-  { args: [0.3, 0.34, 0.28, 48], position: [0, 1.32, 0], role: "accent" },
-  { args: [0.02, 0.3, 0.85, 48], position: [0, 1.88, 0], role: "hull" },
-  { args: [0.425, 0.435, 0.1, 48], position: [0, -0.62, 0], role: "accent" },
-  { args: [0.42, 0.5, 0.3, 48], position: [0, -1.32, 0], role: "dark" },
-  { args: [0.16, 0.3, 0.28, 32], position: [0, -1.58, 0], role: "dark" },
-];
-
-const FIN_ANGLES = [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5] as const;
-
-interface PartMaterialProps {
-  role: PartRole;
+interface HullMaterialProps {
   variant: RocketVariant;
   palette: ScenePalette;
 }
 
-function PartMaterial({ role, variant, palette }: PartMaterialProps) {
+function HullMaterial({ variant, palette }: HullMaterialProps) {
   if (variant === "wire") {
     return (
       <meshBasicMaterial
@@ -45,38 +72,43 @@ function PartMaterial({ role, variant, palette }: PartMaterialProps) {
       />
     );
   }
-  if (role === "accent") {
+  return (
+    <meshStandardMaterial
+      color={palette.hull}
+      metalness={0.86}
+      roughness={0.28}
+      transparent
+    />
+  );
+}
+
+function AccentMaterial({ variant, palette }: HullMaterialProps) {
+  if (variant === "wire") {
     return (
-      <meshStandardMaterial
-        name="accent"
-        color={palette.accent}
-        metalness={0.6}
-        roughness={0.3}
-        emissive={palette.accent}
-        emissiveIntensity={0.25}
+      <meshBasicMaterial
+        color={palette.glow}
+        wireframe
         transparent
-      />
-    );
-  }
-  if (role === "dark") {
-    return (
-      <meshStandardMaterial
-        color={palette.dark}
-        metalness={0.9}
-        roughness={0.5}
-        transparent
+        opacity={0}
+        blending={AdditiveBlending}
+        depthWrite={false}
+        depthTest={false}
       />
     );
   }
   return (
     <meshStandardMaterial
-      color={palette.hull}
-      metalness={0.85}
-      roughness={0.35}
+      color={palette.accent}
+      metalness={0.6}
+      roughness={0.3}
+      emissive={palette.accent}
+      emissiveIntensity={0.35}
       transparent
     />
   );
 }
+
+const FIN_ANGLES = [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5] as const;
 
 export interface RocketShapeProps {
   variant: RocketVariant;
@@ -84,35 +116,64 @@ export interface RocketShapeProps {
 }
 
 /**
- * Placeholder procedural del cohete. Para usar un modelo real, reemplaza el
- * contenido de este componente por los nodes de useGLTF("/models/rocket.glb");
- * la animación de RocketModel opera por traverse, así que funciona con
- * cualquier jerarquía de modelo sin cambios.
+ * Lanzador reutilizable procedural: fuselaje revolucionado, aletas-rejilla
+ * plegadas contra la ojiva y patas de aterrizaje recogidas en la popa. Para
+ * usar un modelo real, sustituye el contenido por los nodes de
+ * `useGLTF("/models/rocket.glb")`; `RocketModel` anima por traverse, así que
+ * funciona con cualquier jerarquía.
  */
 export function RocketShape({ variant, renderOrder = 0 }: RocketShapeProps) {
   const palette = useScenePalette();
+  const profile = useRocketProfile();
 
   return (
     <group>
-      {BODY_PARTS.map((part, index) => (
-        <mesh
-          key={index}
-          position={[...part.position]}
-          renderOrder={renderOrder}
-        >
-          <cylinderGeometry args={[...part.args]} />
-          <PartMaterial role={part.role} variant={variant} palette={palette} />
-        </mesh>
-      ))}
+      {/* fuselaje completo, de la tobera a la punta */}
+      <mesh renderOrder={renderOrder}>
+        <latheGeometry args={[profile, 48]} />
+        <HullMaterial variant={variant} palette={palette} />
+      </mesh>
+
+      {/* cinta de marca bajo la ojiva */}
+      <mesh position={[0, NOSE_START_Y - 0.22, 0]} renderOrder={renderOrder}>
+        <cylinderGeometry
+          args={[HULL_RADIUS + 0.012, HULL_RADIUS + 0.012, 0.12, 48, 1, true]}
+        />
+        <AccentMaterial variant={variant} palette={palette} />
+      </mesh>
+
+      {/* anillo de la interetapa */}
+      <mesh position={[0, -0.55, 0]} renderOrder={renderOrder}>
+        <cylinderGeometry
+          args={[HULL_RADIUS + 0.02, HULL_RADIUS + 0.02, 0.07, 48, 1, true]}
+        />
+        <AccentMaterial variant={variant} palette={palette} />
+      </mesh>
+
+      {/* aletas-rejilla, arriba y plegadas contra el fuselaje */}
       {FIN_ANGLES.map((angle) => (
-        <group key={angle} rotation={[0, angle, 0]}>
+        <group key={`grid-${angle}`} rotation={[0, angle, 0]}>
           <mesh
-            position={[0.48, -1.02, 0]}
-            rotation={[0, 0, -0.24]}
+            position={[HULL_RADIUS + 0.05, 0.66, 0]}
+            rotation={[0, 0, 0.12]}
             renderOrder={renderOrder}
           >
-            <boxGeometry args={[0.34, 0.82, 0.05]} />
-            <PartMaterial role="accent" variant={variant} palette={palette} />
+            <boxGeometry args={[0.12, 0.3, 0.02]} />
+            <AccentMaterial variant={variant} palette={palette} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* patas de aterrizaje: cuatro puntales inclinados en la popa */}
+      {FIN_ANGLES.map((angle) => (
+        <group key={`leg-${angle}`} rotation={[0, angle, 0]}>
+          <mesh
+            position={[HULL_RADIUS - 0.02, -1.42, 0]}
+            rotation={[0, 0, -0.34]}
+            renderOrder={renderOrder}
+          >
+            <boxGeometry args={[0.06, 0.62, 0.06]} />
+            <HullMaterial variant={variant} palette={palette} />
           </mesh>
         </group>
       ))}

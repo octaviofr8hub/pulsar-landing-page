@@ -11,10 +11,12 @@ import { Network } from "@/components/pulsar/network";
 import { Platform } from "@/components/pulsar/platform";
 import { Problem } from "@/components/pulsar/problem";
 import { Race } from "@/components/pulsar/race";
+import { StartAtTop } from "@/components/pulsar/start-at-top";
 
 export default function Home() {
   return (
     <div className="min-h-screen w-full bg-space-950 text-foreground">
+      <StartAtTop />
       <Navbar />
       <main>
         <Hero />

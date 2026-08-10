@@ -713,18 +713,18 @@ export function Platform() {
               <div className="relative mt-2 h-56 overflow-hidden rounded-lg">
                 <GlobeCanvas
                   interactive
+                  textured
                   hubs={MISSION_HUBS}
                   onSelectHub={() => undefined}
                   showHubLabels
                   routes={routes}
                   autoSpin
                   spinSpeed={0.05}
-                  quality="low"
                   cameraDistance={5.4}
                   minDistance={3.6}
                   maxDistance={9}
                   dpr={[1, 1.5]}
-                  lightsPointScale={5}
+                  detailScale={0.7}
                   showZoomButtons
                   showHint
                   hintLabel={c.dragHint}

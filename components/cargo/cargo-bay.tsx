@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { RotateCw, Sparkles, Undo2 } from "lucide-react";
+import { Rocket, RotateCw, Sparkles, Undo2 } from "lucide-react";
 import {
   Suspense,
   useCallback,
@@ -60,7 +60,13 @@ const COPY = {
     auto: "Auto-estiba IA",
     reset: "Vaciar cofia",
     full: "Cofia llena",
-    fullSub: "Vacíala para seguir estibando.",
+    fullSub: "Ya no cabe nada más: es hora de despegar.",
+    launch: "Despegar",
+    launching: "Encendido…",
+    launched: "Misión en vuelo",
+    launchedSub: (m3: string, decks: number) =>
+      `${m3} m³ estibados · ${decks} cubiertas a bordo`,
+    again: "Cargar otra cofia",
     hint: "Apunta y haz clic para soltar · arrastra para girar la vista · R rota, flechas mueven, espacio suelta.",
     assumptions: `Cofia de ${BAY_SIZE} × ${BAY_SIZE} posiciones de palé y ${BAY_LEVELS} cubiertas · 1 posición = ${CELL_VOLUME_M3} m³ · ${BAY_VOLUME_M3} m³ útiles`,
   },
@@ -73,7 +79,13 @@ const COPY = {
     auto: "AI auto-stow",
     reset: "Empty fairing",
     full: "Fairing full",
-    fullSub: "Empty it to keep stowing.",
+    fullSub: "Nothing else fits: time to launch.",
+    launch: "Launch",
+    launching: "Ignition…",
+    launched: "Mission in flight",
+    launchedSub: (m3: string, decks: number) =>
+      `${m3} m³ stowed · ${decks} decks aboard`,
+    again: "Load another fairing",
     hint: "Aim and click to drop · drag to orbit · R rotates, arrows move, space drops.",
     assumptions: `Fairing of ${BAY_SIZE} × ${BAY_SIZE} pallet positions and ${BAY_LEVELS} decks · 1 position = ${CELL_VOLUME_M3} m³ · ${BAY_VOLUME_M3} m³ usable`,
   },
@@ -199,6 +211,13 @@ export function CargoBay({ className = "" }: CargoBayProps) {
   const [state, dispatch] = useReducer(reducer, undefined, initialState);
   /** La vista gira sola hasta que alguien la arrastra. */
   const [autoRotate, setAutoRotate] = useState(true);
+  /**
+   * Fase de la partida: se estiba, despega o ya está en vuelo. El despegue es
+   * el premio por acomodar la carga, así que la cofia se vacía después.
+   */
+  const [phase, setPhase] = useState<"stow" | "launching" | "flight">("stow");
+  /** Foto de la carga en el momento del despegue: es lo que resume la misión. */
+  const [flown, setFlown] = useState({ m3: "0.0", decks: 0 });
 
   // Baraja ya en el cliente: ver `initialState`.
   useEffect(() => dispatch({ type: "shuffle" }), []);
@@ -217,6 +236,29 @@ export function CargoBay({ className = "" }: CargoBayProps) {
       stowedM3: (occupied + state.shipped) * CELL_VOLUME_M3,
     };
   }, [state.grid, state.shipped]);
+
+  const launch = useCallback(() => {
+    if (phase !== "stow") return;
+    setFlown({ m3: metrics.stowedM3.toFixed(1), decks: state.levels });
+    setPhase("launching");
+  }, [phase, metrics.stowedM3, state.levels]);
+
+  // El ascenso dura lo que tarda en salir de cuadro; después, resumen.
+  useEffect(() => {
+    if (phase !== "launching") return;
+    const id = window.setTimeout(
+      () => setPhase("flight"),
+      reducedMotion ? 400 : 2800,
+    );
+    return () => window.clearTimeout(id);
+  }, [phase, reducedMotion]);
+
+  const reload = () => {
+    dispatch({ type: "reset" });
+    setPhase("stow");
+  };
+
+  const hasCargo = metrics.stowedM3 > 0;
 
   /** El puntero apunta a una posición de la planta; el palé se centra ahí. */
   const handleHoverCell = useCallback((x: number, z: number) => {
@@ -241,6 +283,7 @@ export function CargoBay({ className = "" }: CargoBayProps) {
 
   /** Un clic suelta el palé; un arrastre sólo ha estado girando la vista. */
   const handleClick = () => {
+    if (phase !== "stow") return;
     if (dragRef.current.moved) {
       dragRef.current.moved = false;
       return;
@@ -258,7 +301,7 @@ export function CargoBay({ className = "" }: CargoBayProps) {
       "r",
       "R",
     ];
-    if (!keys.includes(event.key)) return;
+    if (!keys.includes(event.key) || phase !== "stow") return;
     event.preventDefault();
 
     switch (event.key) {
@@ -305,12 +348,13 @@ export function CargoBay({ className = "" }: CargoBayProps) {
                 <Suspense fallback={null}>
                   <BayScene
                     grid={state.grid}
-                    active={state.active}
-                    ghost={ghost}
+                    active={phase === "stow" ? state.active : null}
+                    ghost={phase === "stow" ? ghost : null}
                     flash={state.flash}
                     flashLevels={state.flashLevels}
                     reducedMotion={reducedMotion}
-                    autoRotate={autoRotate}
+                    autoRotate={autoRotate && phase === "stow"}
+                    launching={phase === "launching"}
                     onOrbitStart={() => setAutoRotate(false)}
                     onHoverCell={handleHoverCell}
                   />
@@ -321,25 +365,22 @@ export function CargoBay({ className = "" }: CargoBayProps) {
             <SceneFallback />
           )}
 
-          {state.over && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-space-950/80 backdrop-blur-sm">
-              <span className="font-display text-[20px] text-foreground">
-                {c.full}
-              </span>
-              <span className="text-[13px] text-muted-foreground">
-                {c.fullSub}
-              </span>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  dispatch({ type: "reset" });
-                }}
-                className="mt-2 rounded-full bg-pulse-blue px-4 py-1.5 text-[13px] text-white transition-colors hover:bg-pulse-blue/90"
-              >
-                {c.reset}
-              </button>
-            </div>
+          {state.over && phase === "stow" && (
+            <Overlay
+              title={c.full}
+              sub={c.fullSub}
+              action={c.launch}
+              onAction={launch}
+            />
+          )}
+
+          {phase === "flight" && (
+            <Overlay
+              title={c.launched}
+              sub={c.launchedSub(flown.m3, flown.decks)}
+              action={c.again}
+              onAction={reload}
+            />
           )}
         </div>
 
@@ -379,6 +420,13 @@ export function CargoBay({ className = "" }: CargoBayProps) {
           accent
         />
         <BayButton
+          onClick={launch}
+          label={phase === "launching" ? c.launching : c.launch}
+          icon={<Rocket className="h-3.5 w-3.5" />}
+          disabled={!hasCargo || phase !== "stow"}
+          primary
+        />
+        <BayButton
           onClick={() => dispatch({ type: "reset" })}
           label={c.reset}
           icon={<Undo2 className="h-3.5 w-3.5" />}
@@ -413,25 +461,62 @@ function BayButton({
   label,
   icon,
   accent = false,
+  primary = false,
+  disabled = false,
 }: {
   onClick: () => void;
   label: string;
   icon: ReactNode;
   accent?: boolean;
+  primary?: boolean;
+  disabled?: boolean;
 }) {
+  const tone = primary
+    ? "border-pulse-blue bg-pulse-blue text-white hover:bg-pulse-blue/90"
+    : accent
+      ? "border-pulse-blue bg-pulse-blue/15 text-pulse-cyan hover:bg-pulse-blue/25"
+      : "border-border text-muted-foreground hover:text-foreground";
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] transition-colors ${
-        accent
-          ? "border-pulse-blue bg-pulse-blue/15 text-pulse-cyan hover:bg-pulse-blue/25"
-          : "border-border text-muted-foreground hover:text-foreground"
-      }`}
+      disabled={disabled}
+      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${tone}`}
     >
       {icon}
       {label}
     </button>
+  );
+}
+
+/** Cartel sobre la cofia: fin de partida o resumen de misión. */
+function Overlay({
+  title,
+  sub,
+  action,
+  onAction,
+}: {
+  title: string;
+  sub: string;
+  action: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-space-950/80 px-6 text-center backdrop-blur-sm">
+      <span className="font-display text-[20px] text-foreground">{title}</span>
+      <span className="text-[13px] text-muted-foreground">{sub}</span>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onAction();
+        }}
+        className="mt-2 rounded-full bg-pulse-blue px-4 py-1.5 text-[13px] text-white transition-colors hover:bg-pulse-blue/90"
+      >
+        {action}
+      </button>
+    </div>
   );
 }
 

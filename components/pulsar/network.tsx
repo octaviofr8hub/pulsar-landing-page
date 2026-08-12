@@ -327,7 +327,7 @@ export function Network() {
               {c.status}
             </div>
 
-            <NodeImage pending={c.pending} />
+            <NodeImage key={node.id} id={node.id} pending={c.pending} />
 
             <div className="mt-4 space-y-3">
               {c.features.map((f, i) => {
@@ -417,7 +417,15 @@ export function Network() {
   );
 }
 
-function NodeImage({ pending }: { pending: string }) {
+/**
+ * Foto de la plataforma del nodo activo. Cada nodo tiene la suya en
+ * `public/network/<id>.jpg` (ver `docs/image-prompts.md`); mientras no exista,
+ * cae con elegancia al cartel de "imagen pendiente".
+ *
+ * Quien la use debe pasarle `key={id}`: si no, al cambiar de nodo se quedaría
+ * el `failed` del anterior y no intentaría cargar la nueva.
+ */
+function NodeImage({ id, pending }: { id: string; pending: string }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -435,7 +443,7 @@ function NodeImage({ pending }: { pending: string }) {
       </div>
       {!failed && (
         <Image
-          src="/network/platform.jpg"
+          src={`/network/${id}.jpg`}
           alt=""
           fill
           sizes="300px"

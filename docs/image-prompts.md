@@ -160,8 +160,7 @@ style), the tallest and widest vehicle, standing vertical on the glowing blue pa
 
 > Regla mental: **cápsula < cohete medio < cohete pesado (3 núcleos)**. Si tu IA
 > te da un cohete alto para "Cápsula", corrígela: "small capsule, not a rocket".
-
----
+ 
 
 ## 2) Assets extra de marca (opcionales, para reusar)
 
@@ -184,22 +183,6 @@ blue-white engine plume, seen over a dark planet horizon at night with faint
 city lights and clouds below, huge negative space of starfield on the left for
 text, cinematic wide shot --ar 16:9
 ```
-
-### Plataforma offshore — panel de nodo de "La red"
-
-> **Dónde va:** `public/network/platform.jpg` (formato horizontal, ~16:10). Es la
-> foto que aparece en el panel "Nodo seleccionado". Mientras no exista, el panel
-> muestra un placeholder con un ancla.
-
-```
-[estilo base] a semi-submersible offshore spaceport platform on the open ocean,
-a white reusable rocket lying/standing on the rig deck, "Pulsar" on the structure,
-glowing blue lights, calm foggy sea at blue hour, cinematic aerial three-quarter
-shot --ar 16:10
-```
-
-> Nota: el **globo 3D, la Luna y Marte** ya son escenas WebGL en tiempo real
-> dentro de la web (no hacen falta imágenes para eso).
 
 ---
 

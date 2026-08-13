@@ -20,6 +20,7 @@ import {
   type Grid,
   type PieceKind,
 } from "@/lib/cargo-bay";
+import { getCrateTextures } from "@/lib/crate-texture";
 
 /** Un palé = 1 unidad de mundo; la planta se centra en el origen. */
 const HALF = (BAY_SIZE - 1) / 2;
@@ -39,6 +40,13 @@ function cellPosition(
 ): [number, number, number] {
   return [x - HALF, y + 0.5, z - HALF];
 }
+
+/**
+ * Cuerpo del bulto: gris cartón, igual para todos. El tono de la familia no va
+ * en la caja sino en el fleje que la rodea (mapa emisivo), como en un palé de
+ * verdad — así la carga se lee como carga y no como un cubo de color plano.
+ */
+const CRATE_BODY = "#8b9cbd";
 
 /**
  * Cada tipo de palé lleva su tinte dentro de la familia azul-cian de la marca.
@@ -206,6 +214,14 @@ function BayFloor() {
   );
 }
 
+/**
+ * Texturas del bulto. Son un singleton de módulo: las comparten todos los
+ * palés, así que montar y desmontar la cofia no cuesta redibujarlas.
+ */
+function useCrateTextures() {
+  return useMemo(() => getCrateTextures(), []);
+}
+
 /** Palé suelto: cuerpo + aristas. Se usa para el activo y para la sombra. */
 function Pallet({
   position,
@@ -216,17 +232,23 @@ function Pallet({
   color: string;
   ghost?: boolean;
 }) {
+  const crate = useCrateTextures();
+
   return (
     <mesh position={position}>
       <boxGeometry args={[0.92, 0.92, 0.92]} />
+      {/* La sombra de apoyo va sin textura: a esa opacidad el cartón sólo
+          ensucia la silueta. */}
       <meshStandardMaterial
-        color={color}
+        color={ghost ? color : CRATE_BODY}
+        map={ghost ? null : crate.albedo}
+        emissiveMap={ghost ? null : crate.emissive}
         transparent
-        opacity={ghost ? 0.12 : 0.95}
-        roughness={0.45}
-        metalness={0.25}
+        opacity={ghost ? 0.12 : 1}
+        roughness={0.62}
+        metalness={0.18}
         emissive={color}
-        emissiveIntensity={ghost ? 0.1 : 0.25}
+        emissiveIntensity={ghost ? 0.1 : 0.62}
         depthWrite={!ghost}
       />
       <Edges threshold={15} color={color} />
@@ -420,6 +442,7 @@ export function BayScene({
   const activeRef = useRef<Group>(null);
   const launchRef = useRef<Group>(null);
   const launchTime = useRef(0);
+  const crate = useCrateTextures();
 
   /** Posiciones ocupadas, agrupadas por tipo: una instancia por familia. */
   const stowed = useMemo(() => {
@@ -536,11 +559,13 @@ export function BayScene({
           >
             <boxGeometry args={[0.92, 0.92, 0.92]} />
             <meshStandardMaterial
-              color={PIECE_COLOR[kind]}
-              roughness={0.5}
-              metalness={0.3}
+              color={CRATE_BODY}
+              map={crate.albedo}
+              emissiveMap={crate.emissive}
+              roughness={0.62}
+              metalness={0.18}
               emissive={PIECE_COLOR[kind]}
-              emissiveIntensity={0.16}
+              emissiveIntensity={0.42}
             />
             {cells.map(([x, y, z]) => (
               <Instance

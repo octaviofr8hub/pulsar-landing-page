@@ -160,7 +160,6 @@ style), the tallest and widest vehicle, standing vertical on the glowing blue pa
 
 > Regla mental: **cápsula < cohete medio < cohete pesado (3 núcleos)**. Si tu IA
 > te da un cohete alto para "Cápsula", corrígela: "small capsule, not a rocket".
- 
 
 ## 2) Assets extra de marca (opcionales, para reusar)
 

@@ -412,16 +412,21 @@ export function Platform() {
   );
 
   return (
-    <Section id="plataforma" className="border-t border-border">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,280px)_1fr] xl:grid-cols-[minmax(0,280px)_1fr_minmax(0,260px)]">
+    <Section
+      id="plataforma"
+      // La sección es un panel de control: entra entera en pantalla, así que
+      // respira menos que las secciones editoriales.
+      className="border-t border-border py-12 md:py-16"
+    >
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,260px)_1fr] xl:grid-cols-[minmax(0,260px)_1fr_minmax(0,240px)]">
         {/* columna de título */}
         <Reveal>
           <Eyebrow>{c.eyebrow}</Eyebrow>
           <h2
-            className="mt-5 text-foreground"
+            className="mt-4 text-foreground"
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "clamp(2rem,3vw,2.8rem)",
+              fontSize: "clamp(1.8rem,2.5vw,2.5rem)",
               lineHeight: 1.08,
               fontWeight: 600,
             }}
@@ -429,8 +434,8 @@ export function Platform() {
             {c.h2Lead}
             <span className="text-pulse-cyan">{c.h2Accent}</span>
           </h2>
-          <p className="mt-5 text-[15px] text-muted-foreground">{c.para}</p>
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row lg:flex-col">
+          <p className="mt-4 text-[14px] text-muted-foreground">{c.para}</p>
+          <div className="mt-5 flex flex-col gap-2.5 sm:flex-row lg:flex-col">
             <Button className="rounded-full bg-pulse-blue text-white hover:bg-pulse-blue/90">
               {c.demo}
             </Button>
@@ -445,20 +450,20 @@ export function Platform() {
 
         {/* cotizador */}
         <Reveal delay={0.05}>
-          <div className="rounded-2xl border border-border bg-space-900/60 p-6 backdrop-blur">
+          <div className="rounded-2xl border border-border bg-space-900/60 p-4 backdrop-blur md:p-5">
             <div className="flex items-start justify-between">
               <div>
                 <div
                   className="text-foreground"
                   style={{
                     fontFamily: "var(--font-display)",
-                    fontSize: "1.3rem",
+                    fontSize: "1.15rem",
                     fontWeight: 600,
                   }}
                 >
                   {c.quoter}
                 </div>
-                <div className="text-[13px] text-muted-foreground">
+                <div className="text-[12px] text-muted-foreground">
                   {c.quoterSub}
                 </div>
               </div>
@@ -478,18 +483,18 @@ export function Platform() {
               </button>
             </div>
 
-            <div className="mt-6 grid gap-6 md:grid-cols-2">
-              {/* bahía jugable + dimensiones del envío */}
-              <div>
-                <CargoBay />
-                <div className="mt-3 flex items-center justify-between rounded-lg border border-border bg-space-950/40 px-3 py-2 text-[12px]">
-                  <span className="text-muted-foreground">{c.volumetric}</span>
-                  <span className="text-foreground">
-                    {quote.volumeM3.toFixed(2)} m³ ·{" "}
-                    {Math.round(quote.volumeM3 * VOLUMETRIC_KG_PER_M3)} kg
-                  </span>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,264px)]">
+              {/* bahía jugable + ficha de dimensiones, como en el mockup:
+                  el bulto a la izquierda y sus cifras en columna a la derecha */}
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_136px]">
+                <CargoBay
+                  apogeeKm={quote.profile.apogeeKm}
+                  burnoutSpeedKms={quote.profile.burnoutSpeedKms}
+                />
+                <div className="flex flex-col gap-1.5">
+                  <div className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground">
+                    {c.dims.toUpperCase()}
+                  </div>
                   {[
                     [c.length, `${quote.box.lengthCm} cm`],
                     [c.width, `${quote.box.widthCm} cm`],
@@ -498,19 +503,26 @@ export function Platform() {
                   ].map(([k, v]) => (
                     <div
                       key={k}
-                      className="flex items-center justify-between rounded-lg border border-border bg-space-950/40 px-3 py-2"
+                      className="flex items-center justify-between rounded-lg border border-border bg-space-950/40 px-2.5 py-1.5 text-[12px]"
                     >
                       <span className="text-muted-foreground">{k}</span>
                       <span className="text-foreground">{v}</span>
                     </div>
                   ))}
+                  <div className="mt-auto rounded-lg border border-border bg-space-950/40 px-2.5 py-1.5 text-[11px]">
+                    <div className="text-muted-foreground">{c.volumetric}</div>
+                    <div className="text-foreground">
+                      {quote.volumeM3.toFixed(2)} m³ ·{" "}
+                      {Math.round(quote.volumeM3 * VOLUMETRIC_KG_PER_M3)} kg
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* controles */}
-              <div className="space-y-5">
+              <div className="space-y-3.5 rounded-xl border border-border bg-space-950/30 p-3">
                 <div>
-                  <div className="mb-2 text-[13px] text-muted-foreground">
+                  <div className="mb-1.5 text-[12px] text-muted-foreground">
                     {c.route}
                   </div>
                   <div className="space-y-1.5">
@@ -551,10 +563,10 @@ export function Platform() {
                 />
 
                 <div>
-                  <div className="mb-2 text-[13px] text-muted-foreground">
+                  <div className="mb-1.5 text-[12px] text-muted-foreground">
                     {c.services}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {c.svc.map((s, i) => {
                       const on = services.has(i);
                       return (
@@ -562,7 +574,7 @@ export function Platform() {
                           key={s}
                           type="button"
                           onClick={() => toggleService(i)}
-                          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] transition-colors ${on ? "border-pulse-blue bg-pulse-blue/15 text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
+                          className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] transition-colors ${on ? "border-pulse-blue bg-pulse-blue/15 text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
                         >
                           <span
                             className={`flex h-4 w-4 items-center justify-center rounded-full border ${on ? "border-pulse-cyan bg-pulse-cyan/20" : "border-border"}`}
@@ -584,7 +596,7 @@ export function Platform() {
 
         {/* resultado */}
         <Reveal delay={0.1} className="xl:col-start-3">
-          <div className="flex h-full flex-col rounded-2xl border border-pulse-blue/30 bg-gradient-to-b from-space-800 to-space-950 p-6">
+          <div className="flex h-full flex-col rounded-2xl border border-pulse-blue/30 bg-gradient-to-b from-space-800 to-space-950 p-4 md:p-5">
             <div className="flex items-center justify-between">
               <span
                 className="text-foreground"
@@ -597,7 +609,7 @@ export function Platform() {
               </span>
             </div>
 
-            <div className="mt-6 text-[13px] text-muted-foreground">
+            <div className="mt-4 text-[12px] text-muted-foreground">
               {c.transitLabel}
             </div>
             <div className="mt-1 flex items-baseline gap-2">
@@ -606,11 +618,11 @@ export function Platform() {
                 initial={{ opacity: 0.4, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="font-display text-foreground"
-                style={{ fontSize: "2.4rem", fontWeight: 600 }}
+                style={{ fontSize: "2rem", fontWeight: 600 }}
               >
                 {formatDuration(quote.doorHours, lang)}
               </motion.span>
-              <span className="text-[13px] text-pulse-cyan">
+              <span className="text-[12px] text-pulse-cyan">
                 {c.suborbital}
               </span>
             </div>
@@ -620,7 +632,7 @@ export function Platform() {
               {Math.round(quote.profile.apogeeKm)} km
             </div>
 
-            <div className="mt-6 border-t border-border pt-4 text-[13px] text-muted-foreground">
+            <div className="mt-4 border-t border-border pt-3 text-[12px] text-muted-foreground">
               {c.priceLabel}
             </div>
             <div className="mt-1 flex items-baseline gap-2">
@@ -629,17 +641,17 @@ export function Platform() {
                 initial={{ opacity: 0.4 }}
                 animate={{ opacity: 1 }}
                 className="font-display text-pulse-cyan"
-                style={{ fontSize: "1.9rem", fontWeight: 600 }}
+                style={{ fontSize: "1.7rem", fontWeight: 600 }}
               >
                 {quote.price}
               </motion.span>
-              <span className="text-[14px] text-muted-foreground">ZYR</span>
+              <span className="text-[13px] text-muted-foreground">ZYR</span>
               <span className="ml-auto rounded-full border border-border px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
                 {Math.round(quote.billableKg)} kg {c.billable}
               </span>
             </div>
             {/* La justificación del precio, a la vista: Δv → propelente → tarifa. */}
-            <p className="mt-3 font-mono text-[11px] leading-relaxed text-space-500">
+            <p className="mt-2.5 font-mono text-[10px] leading-relaxed text-space-500">
               Δv {quote.economics.deltaVKms.toFixed(2)} km/s · {c.massRatio}{" "}
               {quote.economics.massRatio.toFixed(1)} ·{" "}
               {Math.round(quote.economics.propellantPerPayloadKg)} kg{" "}
@@ -647,10 +659,10 @@ export function Platform() {
               · {Math.round(quote.densityKgM3)} kg/m³
             </p>
 
-            <Button className="mt-6 w-full rounded-full bg-pulse-blue text-white hover:bg-pulse-blue/90">
+            <Button className="mt-auto w-full rounded-full bg-pulse-blue text-white hover:bg-pulse-blue/90">
               {c.book}
             </Button>
-            <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[12px] text-muted-foreground">
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
               <Clock className="h-3.5 w-3.5" /> {c.lockPrice}
             </p>
           </div>
@@ -659,7 +671,7 @@ export function Platform() {
 
       {/* torre de control */}
       <Reveal delay={0.1}>
-        <div className="mt-6 rounded-2xl border border-border bg-space-900/60 p-6 backdrop-blur">
+        <div className="mt-4 rounded-2xl border border-border bg-space-900/60 p-4 backdrop-blur md:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pulse-blue/15 text-pulse-cyan">
@@ -690,7 +702,7 @@ export function Platform() {
 
           {/* scores */}
           <Stagger
-            className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4"
+            className="mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4"
             gap={0.07}
           >
             {c.scores.map((s, i) => (
@@ -701,16 +713,16 @@ export function Platform() {
           </Stagger>
 
           {/* paneles */}
-          <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr]">
+          <div className="mt-3 grid gap-2.5 lg:grid-cols-[1.4fr_1fr_1fr]">
             {/* misiones activas + globo */}
-            <div className="rounded-xl border border-border bg-space-950/50 p-4">
+            <div className="rounded-xl border border-border bg-space-950/50 p-3">
               <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
                 {c.activeMissions}
                 <span className="rounded bg-pulse-blue/15 px-1.5 text-[11px] text-pulse-cyan">
                   12
                 </span>
               </div>
-              <div className="relative mt-2 h-56 overflow-hidden rounded-lg">
+              <div className="relative mt-2 h-36 overflow-hidden rounded-lg">
                 <GlobeCanvas
                   interactive
                   textured
@@ -743,12 +755,12 @@ export function Platform() {
             </div>
 
             {/* alertas */}
-            <div className="rounded-xl border border-border bg-space-950/50 p-4">
+            <div className="rounded-xl border border-border bg-space-950/50 p-3">
               <div className="flex items-center justify-between text-[13px]">
                 <span className="text-foreground">{c.alertsTitle}</span>
                 <span className="text-[12px] text-pulse-cyan">{c.seeAll}</span>
               </div>
-              <div className="mt-3 space-y-2.5">
+              <div className="mt-2.5 space-y-2">
                 {c.alerts.map((a) => (
                   <div key={a.text} className="flex items-start gap-2.5">
                     <span
@@ -768,14 +780,14 @@ export function Platform() {
             </div>
 
             {/* actividad en tiempo real */}
-            <div className="rounded-xl border border-border bg-space-950/50 p-4">
+            <div className="rounded-xl border border-border bg-space-950/50 p-3">
               <div className="flex items-center justify-between text-[13px]">
                 <span className="text-foreground">{c.activityTitle}</span>
                 <span className="text-[12px] text-pulse-cyan">
                   {c.seeAllShort}
                 </span>
               </div>
-              <div className="mt-3 space-y-2.5">
+              <div className="mt-2.5 space-y-2">
                 {c.activity.map((a) => (
                   <div key={a.id} className="flex items-center gap-2.5">
                     {a.tone === "flight" ? (
@@ -845,7 +857,7 @@ function StepSlider({
 }) {
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between text-[13px]">
+      <div className="mb-1.5 flex items-center justify-between text-[12px]">
         <span className="text-muted-foreground">{label}</span>
         <span className="text-pulse-cyan">{steps[value]}</span>
       </div>
@@ -879,7 +891,7 @@ function ScoreCard({
   icon: typeof ShieldCheck;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-space-950/50 p-4">
+    <div className="rounded-xl border border-border bg-space-950/50 p-3">
       <div className="flex items-center justify-between">
         <Icon className="h-4 w-4 text-pulse-blue" />
         <span
@@ -893,7 +905,7 @@ function ScoreCard({
           className="text-foreground"
           style={{
             fontFamily: "var(--font-display)",
-            fontSize: "1.7rem",
+            fontSize: "1.5rem",
             fontWeight: 600,
           }}
         >

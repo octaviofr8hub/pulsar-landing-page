@@ -4,6 +4,8 @@ import { animate, useInView, useMotionValue } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 import { Stagger, StaggerItem } from "./motion";
 
 // La entrada de bloques vive en ./motion junto al resto de la gramática de
@@ -31,7 +33,12 @@ export function Section({
   return (
     <section
       id={id}
-      className={`relative mx-auto w-full max-w-[1600px] px-6 py-24 md:px-10 md:py-32 lg:px-14 ${className}`}
+      // cn() y no plantilla: así una sección puede ajustar su propio ritmo
+      // vertical (`py-*`) sin pelearse con el valor por defecto.
+      className={cn(
+        "relative mx-auto w-full max-w-[1600px] px-6 py-24 md:px-10 md:py-32 lg:px-14",
+        className,
+      )}
     >
       {children}
     </section>

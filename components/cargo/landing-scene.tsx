@@ -1,6 +1,6 @@
 "use client";
 
-import { PerspectiveCamera, Stars } from "@react-three/drei";
+import { Instance, Instances, PerspectiveCamera, Stars } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef, type RefObject } from "react";
 import {
@@ -67,6 +67,9 @@ export interface LandingTelemetry {
   throttle: number;
   /** Urgencia de la frenada, ≥1 significa que ya no da tiempo a parar. */
   urgency: number;
+  /** Mando de actitud que se está aplicando, de −1 a 1 — lo dibuja el HUD. */
+  commandX: number;
+  commandZ: number;
 }
 
 /* ── Decorado ────────────────────────────────────────────────────────────── */
@@ -272,6 +275,149 @@ function Droneship() {
   );
 }
 
+/* ── Puerto en la costa ──────────────────────────────────────────────────── */
+
+/** Distancia a la costa, en unidades de escena (≈ 1,2 km al fondo). */
+const PORT_Z = -150;
+/** Lo que se desplaza el puerto: deja limpio el centro del encuadre. */
+const PORT_X = -30;
+/** Alto de las grúas pórtico, en unidades (≈ 70 m, como las de verdad). */
+const CRANE_HEIGHT = 8.6;
+
+/** Posición de cada grúa a lo largo del muelle. */
+const CRANES = [-44, -19, 5, 28] as const;
+
+/**
+ * Pila de contenedores: x, z y altura en cajas. Se escribe la retícula en vez de
+ * sortearla — nada de `Math.random()` en el render, misma regla que la baraja de
+ * la cofia.
+ */
+const STACKS: readonly (readonly [number, number, number])[] = [
+  [-50, -8, 3], [-45, -8, 4], [-40, -8, 2], [-35, -8, 4], [-30, -8, 3],
+  [-25, -8, 5], [-20, -8, 3], [-15, -8, 4], [-10, -8, 2], [-5, -8, 3],
+  [0, -8, 4], [5, -8, 3], [10, -8, 2], [15, -8, 4], [20, -8, 3],
+  [-48, -13, 4], [-43, -13, 2], [-38, -13, 5], [-33, -13, 3], [-28, -13, 4],
+  [-23, -13, 2], [-18, -13, 4], [-13, -13, 3], [-8, -13, 5], [-3, -13, 3],
+  [2, -13, 2], [7, -13, 4], [12, -13, 3], [17, -13, 4], [22, -13, 2],
+];
+
+/**
+ * Tonos de los contenedores: gama de la marca, nada de arcoíris portuario. Van
+ * oscuros a propósito — a 1,2 km el puerto es una silueta con luces, no una
+ * maqueta iluminada.
+ */
+const CONTAINER_TONES = ["#131b2c", "#1a2540", "#212f4c", "#0f1725"] as const;
+
+/** Grúa pórtico: patas, viga y pluma sobre el agua. */
+function GantryCrane({ x }: { x: number }) {
+  const h = CRANE_HEIGHT;
+
+  return (
+    <group position={[x, 0, 0]}>
+      {[-2.4, 2.4].map((dx) =>
+        [-2.2, 2.2].map((dz) => (
+          <mesh key={`${dx}:${dz}`} position={[dx, h / 2, dz]}>
+            <boxGeometry args={[0.42, h, 0.42]} />
+            <meshStandardMaterial
+              color="#26344e"
+              roughness={0.8}
+              metalness={0.3}
+            />
+          </mesh>
+        )),
+      )}
+
+      {/* viga superior y pluma: la pluma vuela sobre el agua, hacia la cámara */}
+      <mesh position={[0, h + 0.4, 0]}>
+        <boxGeometry args={[5.6, 0.8, 1.1]} />
+        <meshStandardMaterial color="#2e3e5c" roughness={0.75} metalness={0.35} />
+      </mesh>
+      <mesh position={[0, h + 0.9, 6]}>
+        <boxGeometry args={[1, 0.55, 22]} />
+        <meshStandardMaterial color="#33456a" roughness={0.75} metalness={0.35} />
+      </mesh>
+      <mesh position={[0, h + 1.9, 1.6]}>
+        <boxGeometry args={[1.5, 1.4, 1.6]} />
+        <meshStandardMaterial color="#1b2740" roughness={0.8} metalness={0.2} />
+      </mesh>
+
+      {/* baliza de tope: lo que hace legible la silueta de noche */}
+      <mesh position={[0, h + 2.8, 1.6]}>
+        <sphereGeometry args={[0.16, 8, 6]} />
+        <meshBasicMaterial color="#f87171" />
+      </mesh>
+    </group>
+  );
+}
+
+/**
+ * El puerto del que sale la carga, al fondo de la escena de aterrizaje. No es
+ * decorado gratuito: da escala —las grúas miden lo que miden— y sitúa la
+ * barcaza en el mar frente a una costa, en vez de en mitad de la nada.
+ */
+function Port() {
+  return (
+    <group position={[PORT_X, 0, PORT_Z]}>
+      {/* muelle */}
+      <mesh position={[-14, 0.7, -10]}>
+        <boxGeometry args={[126, 1.4, 30]} />
+        <meshStandardMaterial color="#101a2b" roughness={0.9} metalness={0.15} />
+      </mesh>
+      {/* canto iluminado del muelle */}
+      <mesh position={[-14, 1.45, 4.9]}>
+        <boxGeometry args={[126, 0.12, 0.3]} />
+        <meshBasicMaterial color="#38bdf8" transparent opacity={0.55} />
+      </mesh>
+
+      {/* naves y depósitos detrás de las pilas */}
+      {[
+        [-46, 3.2, -20, 20, 5],
+        [-14, 2.6, -22, 16, 4],
+        [16, 3.6, -19, 14, 6],
+      ].map(([x, y, z, width, height]) => (
+        <mesh key={x} position={[x, y, z]}>
+          <boxGeometry args={[width, height, 9]} />
+          <meshStandardMaterial
+            color="#0d1522"
+            roughness={0.92}
+            metalness={0.1}
+          />
+        </mesh>
+      ))}
+
+      <Instances limit={STACKS.length * 5} range={STACKS.length * 5}>
+        <boxGeometry args={[4.2, 1.1, 1.9]} />
+        <meshStandardMaterial roughness={0.85} metalness={0.15} />
+        {STACKS.flatMap(([x, z, height]) =>
+          Array.from({ length: height }, (_, level) => (
+            <Instance
+              key={`${x}:${z}:${level}`}
+              position={[x, 1.4 + 1.15 * level, z]}
+              // Módulo con valor absoluto: las coordenadas son negativas y un
+              // índice negativo dejaba el contenedor sin color, es decir blanco.
+              color={
+                CONTAINER_TONES[Math.abs(x + z + level) % CONTAINER_TONES.length]
+              }
+            />
+          )),
+        )}
+      </Instances>
+
+      {CRANES.map((x) => (
+        <GantryCrane key={x} x={x} />
+      ))}
+
+      {/* farolas del muelle */}
+      {[-60, -44, -28, -12, 4, 20].map((x) => (
+        <mesh key={x} position={[x, 2.6, 3.4]}>
+          <sphereGeometry args={[0.2, 8, 6]} />
+          <meshBasicMaterial color="#fde68a" transparent opacity={0.85} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 /** Haz de guiado: la vertical de la cubierta, visible desde cualquier altura. */
 function GuidanceBeam() {
   return (
@@ -457,6 +603,12 @@ function TouchdownFx({
 
 export interface LandingSceneProps {
   reducedMotion: boolean;
+  /**
+   * El mando ya está entregado. Hasta entonces la simulación se queda quieta:
+   * si corre por detrás del cartel de "toma el mando", el cohete se estrella
+   * solo mientras el jugador lee las instrucciones.
+   */
+  armed: boolean;
   /** Mando del piloto: actitud en los dos ejes y gas. */
   commandRef: RefObject<LandingCommand>;
   /** Con el piloto automático puesto, el lazo de control sustituye al jugador. */
@@ -472,6 +624,7 @@ export interface LandingSceneProps {
  */
 export function LandingScene({
   reducedMotion,
+  armed,
   commandRef,
   assist,
   onTelemetry,
@@ -491,7 +644,9 @@ export function LandingScene({
     if (assist && !previous.assisted) previous.assisted = true;
 
     const command = assist ? autopilotCommand(previous) : commandRef.current;
-    const state = stepLanding(previous, command, delta);
+    // En pausa hasta que el jugador acepta la aproximación: la escena se ve y la
+    // cámara se coloca, pero el reloj de la maniobra no corre.
+    const state = armed ? stepLanding(previous, command, delta) : previous;
     stateRef.current = state;
     // Un único reloj para el remate: empieza a correr en cuanto hay veredicto.
     if (state.result) fxRef.current += delta;
@@ -548,13 +703,17 @@ export function LandingScene({
       published.current = 0;
       onTelemetry({
         altitudeM: Math.max(0, state.altitude),
-        descentMs: Math.max(0, -state.vy),
+        // Con signo: negativa quiere decir que el cohete está subiendo, y eso el
+        // HUD lo avisa — frenar de más es el error más fácil de cometer.
+        descentMs: -state.vy,
         offsetM: offsetOf(state),
         driftMs: driftOf(state),
         tiltDeg: (tiltOf(state) * 180) / Math.PI,
         fuel: state.fuel / BURN_SECONDS,
         throttle: state.throttle,
         urgency: brakingUrgency(state),
+        commandX: armed ? command.x : 0,
+        commandZ: armed ? command.z : 0,
       });
     }
 
@@ -598,6 +757,7 @@ export function LandingScene({
       />
 
       <Sea />
+      <Port />
       <Droneship />
       <GuidanceBeam />
       <TargetHoop stateRef={stateRef} />

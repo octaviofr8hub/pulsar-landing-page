@@ -28,6 +28,16 @@ export const THRUST_MS2 = 27;
 export const BURN_SECONDS = 16;
 /** Autoridad lateral de los propulsores de gas frío, en m/s². */
 export const RCS_MS2 = 2.2;
+/**
+ * Velocidad de subida a partir de la cual el control de vuelo recorta el gas,
+ * en m/s. La aproximación final no es un despegue: sin este tope, mantener el
+ * motor apretado mandaba el cohete a un kilómetro de altura y la misión se
+ * perdía sin que el jugador entendiese qué había hecho mal. Frenar de más sigue
+ * costando propelente —que es la penalización justa— pero no te echa del mapa.
+ */
+const CLIMB_LIMIT_MS = 0.8;
+/** Margen en el que el gas pasa de todo a nada, en m/s. */
+const CLIMB_FADE_MS = 2.2;
 
 /* ── Límites del tren de aterrizaje ──────────────────────────────────────── */
 
@@ -44,12 +54,29 @@ export const ABORT_TILT_RAD = 0.38;
 
 /* ── Dinámica de actitud ─────────────────────────────────────────────────── */
 
-/** Par que da el mando a fondo, en rad/s². */
-const GIMBAL_TORQUE = 0.85;
-/** El piloto automático devuelve el cohete a la vertical, pero despacio. */
-const ATTITUDE_STIFFNESS = 1.7;
+/**
+ * Inclinación que pide el mando a fondo, en radianes (≈ 9°).
+ *
+ * El mando **no** mueve el gimbal directamente: pide una actitud y el control de
+ * vuelo la sostiene, como el fly-by-wire de un lanzador de verdad. Mandando par
+ * al gimbal, el tope del mando pedía 28° —más que el ángulo de vuelco— y el
+ * cohete se tumbaba sin que el jugador entendiese por qué. Con el mando de
+ * actitud, pilotando no se llega al vuelco: el margen se pierde por quedarse sin
+ * propelente, y la habilidad está en enderezarse antes de tocar (`MAX_TILT_RAD`
+ * es menor que este tope, así que posarse con el mando a fondo vuelca).
+ */
+export const COMMAND_TILT_RAD = 0.16;
+/** Par máximo del gimbal, en rad/s². */
+const GIMBAL_TORQUE = 1.1;
+/** Ganancia del lazo de actitud, en rad/s² por radián de error. */
+const ATTITUDE_GAIN = 5;
 /** Amortiguación del lazo de actitud. */
-const ATTITUDE_DAMPING = 3;
+const ATTITUDE_DAMPING = 3.4;
+/**
+ * Autoridad de actitud con el motor apagado, en tanto por uno: el gimbal sólo
+ * da par si hay llama, así que en caída libre quedan los propulsores de gas frío.
+ */
+const COAST_AUTHORITY = 0.45;
 /** Lo que tarda el motor en subir de gas (1/s). */
 const THROTTLE_RESPONSE = 7;
 /** Paso fijo de la simulación, en segundos. */
@@ -91,6 +118,8 @@ export interface LandingResult {
   tiltDeg: number;
   /** Nota del aterrizaje, de 0 a 1. */
   score: number;
+  /** Propelente que quedaba al tocar, de 0 a 1. */
+  fuel: number;
   /** Lo hizo el piloto automático, no el jugador. */
   assisted: boolean;
 }
@@ -213,6 +242,7 @@ function evaluate(state: LandingState, assisted: boolean): LandingResult {
     offset,
     tiltDeg,
     score: 0,
+    fuel: state.fuel / BURN_SECONDS,
     assisted,
   });
 
@@ -242,6 +272,7 @@ function evaluate(state: LandingState, assisted: boolean): LandingResult {
     offset,
     tiltDeg,
     score: 0.5 + 0.5 * margin,
+    fuel: state.fuel / BURN_SECONDS,
     assisted,
   };
 }
@@ -254,28 +285,28 @@ function integrate(
   const cx = clamp(command.x, 1);
   const cz = clamp(command.z, 1);
 
-  // El motor no arranca de golpe: el gas sube y baja con su propia constante.
-  const wanted = command.burn && state.fuel > 0 ? 1 : 0;
+  // El motor no arranca de golpe: el gas sube y baja con su propia constante, y
+  // el control de vuelo lo recorta solo si el cohete empieza a subir.
+  const climbing = Math.max(0, state.vy - CLIMB_LIMIT_MS) / CLIMB_FADE_MS;
+  const wanted =
+    command.burn && state.fuel > 0 ? Math.max(0, 1 - climbing) : 0;
   const throttle =
     state.throttle + (wanted - state.throttle) * Math.min(1, step * THROTTLE_RESPONSE);
   const fuel = Math.max(0, state.fuel - throttle * step);
   const accel = throttle * THRUST_MS2;
 
-  // Actitud: muelle amortiguado hacia la vertical, empujado por el gimbal. El
-  // mando a fondo pide más inclinación de la que aguanta el vehículo — de ahí
-  // que mantenerlo apretado acabe en vuelco.
+  // Actitud: el mando pide una inclinación y el lazo la sostiene. El par
+  // disponible depende del motor —el gimbal sólo empuja si hay llama—, así que
+  // quedarse sin propelente es quedarse casi sin control.
+  const authority =
+    GIMBAL_TORQUE * (COAST_AUTHORITY + (1 - COAST_AUTHORITY) * throttle);
+  const torque = (want: number, tilt: number, rate: number) =>
+    clamp((want - tilt) * ATTITUDE_GAIN - rate * ATTITUDE_DAMPING, authority);
+
   const rateX =
-    state.rateX +
-    (cx * GIMBAL_TORQUE -
-      state.tiltX * ATTITUDE_STIFFNESS -
-      state.rateX * ATTITUDE_DAMPING) *
-      step;
+    state.rateX + torque(cx * COMMAND_TILT_RAD, state.tiltX, state.rateX) * step;
   const rateZ =
-    state.rateZ +
-    (cz * GIMBAL_TORQUE -
-      state.tiltZ * ATTITUDE_STIFFNESS -
-      state.rateZ * ATTITUDE_DAMPING) *
-      step;
+    state.rateZ + torque(cz * COMMAND_TILT_RAD, state.tiltZ, state.rateZ) * step;
   const tiltX = state.tiltX + rateX * step;
   const tiltZ = state.tiltZ + rateZ * step;
   const tilt = Math.hypot(tiltX, tiltZ);
@@ -318,6 +349,7 @@ function integrate(
         offset: Math.hypot(next.x, next.z),
         tiltDeg: tilt * RAD2DEG,
         score: 0,
+        fuel: next.fuel / BURN_SECONDS,
         assisted: state.assisted,
       },
     };
@@ -383,20 +415,11 @@ export function autopilotCommand(state: LandingState): LandingCommand {
   const wantX = want(state.x, state.vx);
   const wantZ = want(state.z, state.vz);
 
-  // Mando necesario para sostener esa inclinación (dinámica inversa) más la
-  // corrección del error de actitud.
-  const toCommand = (want: number, tilt: number, rate: number) =>
-    clamp(
-      (want * ATTITUDE_STIFFNESS +
-        (want - tilt) * 2.6 -
-        rate * ATTITUDE_DAMPING * 0.5) /
-        GIMBAL_TORQUE,
-      1,
-    );
-
+  // El mando ya es de actitud: basta con pedir esa inclinación en fracción del
+  // tope. El lazo de `integrate` se encarga de sostenerla.
   return {
-    x: toCommand(wantX, state.tiltX, state.rateX),
-    z: toCommand(wantZ, state.tiltZ, state.rateZ),
+    x: clamp(wantX / COMMAND_TILT_RAD, 1),
+    z: clamp(wantZ / COMMAND_TILT_RAD, 1),
     burn,
   };
 }

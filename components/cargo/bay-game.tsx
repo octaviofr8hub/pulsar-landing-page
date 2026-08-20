@@ -72,6 +72,13 @@ import {
   type LandingResult,
   type LandingVerdict,
 } from "@/lib/cargo-landing";
+import {
+  SCORE_TOTAL,
+  SCORE_WEIGHTS,
+  missionScore,
+  type MissionRank,
+  type MissionScore,
+} from "@/lib/mission-score";
 import type { GeoPoint } from "@/types/network";
 
 import {
@@ -82,6 +89,12 @@ import {
 import { BayScene } from "./bay-scene";
 import { preloadEarthTextures } from "./earth-below";
 import { LandingScene, type LandingTelemetry } from "./landing-scene";
+
+/** Una línea del cartel de mandos: qué se pulsa y para qué. */
+interface ControlHint {
+  keys: readonly string[];
+  action: string;
+}
 
 const COPY = {
   es: {
@@ -110,11 +123,35 @@ const COPY = {
     skip: "Saltar ascenso",
     steerHint: "Pilota con el puntero · cruza los aros",
     hint: "Clic para soltar · arrastra para girar la vista · R rota, flechas mueven, espacio suelta.",
+    hintShort: "Clic suelta · arrastra gira · R rota · flechas mueven",
     approach: "Aproximación final",
-    approachSub: `Vuelves a casa sobre la barcaza, a ${APPROACH_ALTITUDE_M} m. Mantén pulsado (o espacio) para frenar y mueve el puntero para corregir la deriva — suave: pasarse de inclinación es perder el cohete.`,
+    approachSub: `Vuelves a casa sobre la barcaza, a ${APPROACH_ALTITUDE_M} m y descentrado. Frena a tiempo y mata la deriva antes de tocar.`,
     approachStart: "Tomar el mando",
     landingHint: "Mantén pulsado para frenar · puntero para corregir",
+    controls: [
+      { keys: ["Clic", "Espacio"], action: "Motor: frena la caída" },
+      { keys: ["Puntero", "← ↑ ↓ →"], action: "Inclinar: corrige el desvío" },
+      { keys: ["A"], action: "Piloto automático" },
+      { keys: ["F"], action: "Pantalla completa" },
+    ] as readonly ControlHint[],
+    engine: "Motor",
+    engineKeys: "Clic / Espacio",
+    attitude: "Actitud",
+    attitudeKeys: "Puntero / Flechas",
+    climbing: "Subiendo · suelta el gas",
+    score: "Puntuación",
+    scoreStow: "Estiba",
+    scoreGuidance: "Guiado",
+    scoreLanding: "Aterrizaje",
+    ranks: {
+      S: "Comandante",
+      A: "Piloto de pruebas",
+      B: "Piloto",
+      C: "En prácticas",
+      D: "Novato",
+    } as Record<MissionRank, string>,
     descent: "Descenso",
+    climb: "Ascenso",
     offset: "Desvío",
     fuel: "Propelente",
     tilt: "Inclinación",
@@ -174,11 +211,35 @@ const COPY = {
     skip: "Skip ascent",
     steerHint: "Fly with the pointer · thread the rings",
     hint: "Click to drop · drag to orbit · R rotates, arrows move, space drops.",
+    hintShort: "Click drops · drag orbits · R rotates · arrows move",
     approach: "Final approach",
-    approachSub: `You are coming home to the droneship from ${APPROACH_ALTITUDE_M} m. Hold the pointer (or space) to brake and move it to kill the drift — gently: over-tilting loses the booster.`,
+    approachSub: `You are coming home to the droneship from ${APPROACH_ALTITUDE_M} m, off centre. Brake in time and kill the drift before you touch.`,
     approachStart: "Take control",
     landingHint: "Hold to brake · pointer to correct",
+    controls: [
+      { keys: ["Click", "Space"], action: "Engine: brakes the fall" },
+      { keys: ["Pointer", "← ↑ ↓ →"], action: "Tilt: kills the drift" },
+      { keys: ["A"], action: "Autopilot" },
+      { keys: ["F"], action: "Full screen" },
+    ] as readonly ControlHint[],
+    engine: "Engine",
+    engineKeys: "Click / Space",
+    attitude: "Attitude",
+    attitudeKeys: "Pointer / Arrows",
+    climbing: "Climbing · ease off",
+    score: "Score",
+    scoreStow: "Stowage",
+    scoreGuidance: "Guidance",
+    scoreLanding: "Landing",
+    ranks: {
+      S: "Commander",
+      A: "Test pilot",
+      B: "Pilot",
+      C: "Trainee",
+      D: "Rookie",
+    } as Record<MissionRank, string>,
     descent: "Descent",
+    climb: "Climb",
     offset: "Offset",
     fuel: "Propellant",
     tilt: "Tilt",
@@ -342,6 +403,8 @@ const EMPTY_LANDING: LandingTelemetry = {
   fuel: 1,
   throttle: 0,
   urgency: 0,
+  commandX: 0,
+  commandZ: 0,
 };
 
 const MAX_TILT_DEG = (MAX_TILT_RAD * 180) / Math.PI;
@@ -396,7 +459,7 @@ export function BayGame({
   const [autoRotate, setAutoRotate] = useState(true);
   const [phase, setPhase] = useState<Phase>("stow");
   /** Foto de la carga en el momento del despegue: es lo que resume la misión. */
-  const [flown, setFlown] = useState({ m3: "0.0", decks: 0 });
+  const [flown, setFlown] = useState({ m3: 0, decks: 0 });
   const [telemetry, setTelemetry] = useState<AscentTelemetry>(EMPTY_TELEMETRY);
   const [guidance, setGuidance] = useState(1);
   const [landing, setLanding] = useState<LandingTelemetry>(EMPTY_LANDING);
@@ -500,7 +563,7 @@ export function BayGame({
 
   const launch = useCallback(() => {
     if (phase !== "stow") return;
-    setFlown({ m3: metrics.stowedM3.toFixed(1), decks: state.levels });
+    setFlown({ m3: metrics.stowedM3, decks: state.levels });
     setTelemetry(EMPTY_TELEMETRY);
     steerRef.current = { x: 0, z: 0 };
     setPhase("launching");
@@ -537,11 +600,15 @@ export function BayGame({
     [armLanding],
   );
 
-  /** Al saltar, el guiado es el de las puertas ya evaluadas — no un 100 % regalado. */
+  /**
+   * Saltar el ascenso no regala el guiado: los aros que no se han volado
+   * cuentan como fallados. Contándolo sólo sobre los ya evaluados, saltar en el
+   * primer segundo daba un 100 % — y el guiado son 300 puntos de la misión.
+   */
   const skipAscent = useCallback(() => {
-    setGuidance(telemetry.gates === 0 ? 1 : telemetry.passed / telemetry.gates);
+    setGuidance(telemetry.passed / GATE_COUNT);
     armLanding();
-  }, [telemetry.gates, telemetry.passed, armLanding]);
+  }, [telemetry.passed, armLanding]);
 
   const finishLanding = useCallback((result: LandingResult) => {
     setOutcome(result);
@@ -554,6 +621,13 @@ export function BayGame({
     setApproaching(false);
     setPhase("stow");
   };
+
+  /** Marcador de la misión: los tres actos, con su desglose. */
+  const score = useMemo(
+    () =>
+      missionScore({ stowedM3: flown.m3, guidance, landing: outcome }),
+    [flown.m3, guidance, outcome],
+  );
 
   const hasCargo = metrics.stowedM3 > 0;
   const flying = phase === "ascent";
@@ -660,6 +734,13 @@ export function BayGame({
   };
 
   const handleKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    // A entrega el mando al piloto automático mientras se pilota el descenso.
+    if ((event.key === "a" || event.key === "A") && piloting) {
+      event.preventDefault();
+      setAssist(true);
+      return;
+    }
+
     // F amplía y reduce en cualquier fase: es un mando de la vista, no del juego.
     if (event.key === "f" || event.key === "F") {
       event.preventDefault();
@@ -792,6 +873,7 @@ export function BayGame({
                     <LandingScene
                       key={attempt}
                       reducedMotion={reducedMotion}
+                      armed={approaching}
                       commandRef={commandRef}
                       assist={assist}
                       onTelemetry={setLanding}
@@ -844,6 +926,7 @@ export function BayGame({
             <Overlay
               title={c.approach}
               sub={c.approachSub}
+              hints={c.controls}
               action={c.approachStart}
               onAction={() => setApproaching(true)}
             />
@@ -853,12 +936,24 @@ export function BayGame({
             <Overlay
               title={c.launched}
               sub={c.launchedSub(
-                flown.m3,
+                flown.m3.toFixed(1),
                 flown.decks,
                 Math.round(guidance * 100),
                 `${c.landings[outcome.verdict]}${outcome.assisted ? ` (${c.assisted})` : ""}`,
               )}
               note={c.verdictSub(outcome)}
+              panel={
+                <ScoreBoard
+                  score={score}
+                  label={c.score}
+                  rank={c.ranks[score.rank]}
+                  rows={[
+                    [c.scoreStow, score.stow, SCORE_WEIGHTS.stow],
+                    [c.scoreGuidance, score.guidance, SCORE_WEIGHTS.guidance],
+                    [c.scoreLanding, score.landing, SCORE_WEIGHTS.landing],
+                  ]}
+                />
+              }
               tone={outcome.ok ? "good" : "bad"}
               action={outcome.ok ? c.again : c.retry}
               onAction={outcome.ok ? reload : armLanding}
@@ -917,15 +1012,38 @@ export function BayGame({
 
         {/* Aviso de frenada: sale de la distancia de parada a tope de gas
             comparada con la altura que queda, no es una alarma de adorno. */}
-        {piloting && landing.urgency > 0.55 && (
-          <div className="pointer-events-none absolute left-1/2 top-14 -translate-x-1/2">
+        {piloting && (landing.descentMs < -1 || landing.urgency > 0.55) && (
+          <div className="pointer-events-none absolute left-1/2 top-14 -translate-x-1/2 whitespace-nowrap text-center">
             <span
               className={`font-mono text-[11px] tracking-[0.22em] ${
-                landing.urgency > 0.85 ? "text-amber-300" : "text-pulse-cyan"
+                landing.descentMs < -1
+                  ? "text-amber-300"
+                  : landing.urgency > 0.85
+                    ? "text-amber-300"
+                    : "text-pulse-cyan"
               }`}
             >
-              {c.brake.toUpperCase()}
+              {(landing.descentMs < -1 ? c.climbing : c.brake).toUpperCase()}
             </span>
+          </div>
+        )}
+
+        {/* Los dos mandos, siempre a la vista mientras se pilota: qué se pulsa
+            y qué está haciendo. Sin esto no hay forma de saber que el clic es
+            el motor y el puntero, la inclinación. */}
+        {piloting && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-10 flex items-end justify-between px-2.5">
+            <ThrottleGauge
+              label={c.engine}
+              hint={c.engineKeys}
+              value={landing.throttle}
+            />
+            <AttitudeStick
+              label={c.attitude}
+              hint={c.attitudeKeys}
+              x={landing.commandX}
+              z={landing.commandZ}
+            />
           </div>
         )}
 
@@ -937,10 +1055,12 @@ export function BayGame({
             {landingPhase ? (
               <>
                 <Gauge
-                  label={c.descent}
-                  value={`${landing.descentMs.toFixed(1)} m/s`}
+                  label={landing.descentMs < 0 ? c.climb : c.descent}
+                  value={`${Math.abs(landing.descentMs).toFixed(1)} m/s`}
                   warn={
-                    landing.altitudeM < 40 && landing.descentMs > MAX_TOUCHDOWN_MS
+                    landing.descentMs < -1 ||
+                    (landing.altitudeM < 40 &&
+                      landing.descentMs > MAX_TOUCHDOWN_MS)
                   }
                 />
                 <Gauge
@@ -1045,6 +1165,11 @@ export function BayGame({
             icon={<Maximize2 className="h-3 w-3" />}
           />
         )}
+        {phase === "stow" && (
+          <span className="font-mono text-[10px] text-space-500">
+            {c.hintShort}
+          </span>
+        )}
         {piloting && (
           <span className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
             <Flame
@@ -1073,7 +1198,7 @@ function Gauge({
   warn: boolean;
 }) {
   return (
-    <span>
+    <span className="whitespace-nowrap">
       {label}{" "}
       <span className={warn ? "text-amber-300" : "text-foreground"}>{value}</span>
     </span>
@@ -1151,6 +1276,8 @@ function Overlay({
   title,
   sub,
   note,
+  hints,
+  panel,
   tone = "plain",
   action,
   onAction,
@@ -1161,6 +1288,10 @@ function Overlay({
   sub: string;
   /** Segunda línea: el detalle técnico de lo que ha pasado. */
   note?: string;
+  /** Mandos de la maniobra, uno por línea. */
+  hints?: readonly ControlHint[];
+  /** Bloque suelto entre el texto y los botones — el marcador, por ejemplo. */
+  panel?: ReactNode;
   tone?: "plain" | "good" | "bad";
   action: string;
   onAction: () => void;
@@ -1185,6 +1316,31 @@ function Overlay({
           {note}
         </span>
       )}
+      {hints && (
+        <div className="mt-2 grid gap-1">
+          {hints.map((hint) => (
+            <div
+              key={hint.action}
+              className="flex items-center justify-center gap-2"
+            >
+              <span className="flex shrink-0 gap-1">
+                {hint.keys.map((key) => (
+                  <kbd
+                    key={key}
+                    className="rounded border border-space-700 bg-space-900 px-1.5 py-0.5 font-mono text-[10px] leading-none text-space-300"
+                  >
+                    {key}
+                  </kbd>
+                ))}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {hint.action}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {panel}
       <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
         <button
           type="button"
@@ -1208,6 +1364,137 @@ function Overlay({
             {secondary}
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Mando del motor: la barra dice cuánto gas está entrando y la línea de abajo,
+ * con qué se aprieta. Es la mitad del pilotaje, así que va escrito en pantalla.
+ */
+function ThrottleGauge({
+  label,
+  hint,
+  value,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+}) {
+  const on = value > 0.03;
+
+  return (
+    <div className="w-[92px]">
+      <div
+        className={`font-mono text-[9px] tracking-[0.18em] ${on ? "text-pulse-cyan" : "text-space-500"}`}
+      >
+        {label.toUpperCase()}
+      </div>
+      <div className="mt-1 h-[5px] w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-pulse-cyan transition-[width] duration-100"
+          style={{ width: `${Math.round(value * 100)}%` }}
+        />
+      </div>
+      <div className="mt-1 font-mono text-[9px] leading-none text-space-400">
+        {hint.toUpperCase()}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Palanca de actitud: dónde está pidiendo el mando dentro de su tope. Enseña
+ * también lo que pide el piloto automático, así que sirve para aprender la
+ * maniobra mirándolo volar.
+ */
+function AttitudeStick({
+  label,
+  hint,
+  x,
+  z,
+}: {
+  label: string;
+  hint: string;
+  x: number;
+  z: number;
+}) {
+  const clamp = (value: number) => Math.max(-1, Math.min(1, value));
+
+  return (
+    <div className="w-[92px] text-right">
+      <div className="font-mono text-[9px] tracking-[0.18em] text-space-500">
+        {label.toUpperCase()}
+      </div>
+      <div className="mt-1 ml-auto relative h-[42px] w-[42px] rounded border border-space-700 bg-space-950/60">
+        <div className="absolute inset-x-1 top-1/2 h-px -translate-y-1/2 bg-space-700" />
+        <div className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-space-700" />
+        <div
+          className="absolute h-[7px] w-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-pulse-cyan transition-all duration-150"
+          style={{
+            left: `${50 + clamp(x) * 38}%`,
+            top: `${50 + clamp(z) * 38}%`,
+          }}
+        />
+      </div>
+      <div className="mt-1 font-mono text-[9px] leading-none text-space-400">
+        {hint.toUpperCase()}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Marcador de la misión: el total, el rango y de dónde salen los puntos. El
+ * desglose no es adorno — es lo que dice qué acto hay que mejorar.
+ */
+function ScoreBoard({
+  score,
+  label,
+  rank,
+  rows,
+}: {
+  score: MissionScore;
+  label: string;
+  rank: string;
+  rows: readonly (readonly [string, number, number])[];
+}) {
+  return (
+    <div className="mt-2 w-[min(300px,100%)] border-t border-space-800 pt-2">
+      <div className="flex items-baseline justify-center gap-2">
+        <span className="font-mono text-[9px] tracking-[0.18em] text-space-500">
+          {label.toUpperCase()}
+        </span>
+        <span className="font-display text-[30px] leading-none text-foreground">
+          {score.total}
+        </span>
+        <span className="font-mono text-[10px] text-space-500">
+          / {SCORE_TOTAL}
+        </span>
+        <span className="rounded-full border border-pulse-blue/50 px-2 py-0.5 font-mono text-[10px] text-pulse-cyan">
+          {score.rank} · {rank}
+        </span>
+      </div>
+
+      <div className="mt-2 grid gap-1">
+        {rows.map(([name, points, max]) => (
+          <div key={name} className="flex items-center gap-2">
+            <span className="w-[62px] shrink-0 text-left font-mono text-[9px] tracking-[0.12em] text-space-500">
+              {name.toUpperCase()}
+            </span>
+            <span className="h-[4px] flex-1 overflow-hidden rounded-full bg-white/10">
+              <span
+                className="block h-full rounded-full bg-pulse-blue"
+                style={{ width: `${Math.round((points / max) * 100)}%` }}
+              />
+            </span>
+            <span className="w-[54px] shrink-0 text-right font-mono text-[10px] text-space-300">
+              {points}
+              <span className="text-space-600">/{max}</span>
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { PerspectiveCamera, Stars } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef, type RefObject } from "react";
+import { Suspense, useMemo, useRef, type RefObject } from "react";
 import {
   AdditiveBlending,
   BackSide,
@@ -29,6 +29,9 @@ import {
   type AscentState,
   type SteerTarget,
 } from "@/lib/cargo-ascent";
+import type { GeoPoint } from "@/types/network";
+
+import { EarthBelow, EarthSurface, PlainEarth } from "./earth-below";
 
 /**
  * Profundidad de escena que representa el ascenso completo.
@@ -254,54 +257,15 @@ function Streaks({ stateRef }: { stateRef: RefObject<AscentState> }) {
   );
 }
 
-/** El planeta cayendo: la referencia de que esto sube de verdad. */
-function PlanetBelow({ stateRef }: { stateRef: RefObject<AscentState> }) {
-  const groupRef = useRef<Group>(null);
-
-  useFrame(() => {
-    const group = groupRef.current;
-    if (!group) return;
-    const p = ascentProgress(stateRef.current);
-    // Se hunde y se aleja: la curvatura entra en cuadro y luego queda atrás.
-    group.position.y = -58 - p * 62;
-    group.position.z = -26 - p * 40;
-    group.rotation.y += 0.0004;
-  });
-
-  return (
-    <group ref={groupRef} position={[0, -58, -26]}>
-      <mesh>
-        <sphereGeometry args={[44, 48, 32]} />
-        <meshStandardMaterial
-          color="#0a1a30"
-          roughness={0.95}
-          metalness={0}
-          emissive="#0b2748"
-          emissiveIntensity={0.5}
-        />
-      </mesh>
-      {/* atmósfera: el filo azul del horizonte */}
-      <mesh scale={1.045}>
-        <sphereGeometry args={[44, 48, 32]} />
-        <meshBasicMaterial
-          color="#2f7ad6"
-          transparent
-          opacity={0.28}
-          side={BackSide}
-          blending={AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
-    </group>
-  );
-}
-
 export interface AscentSceneProps {
   /** Apogeo de la ruta cotizada, en km: la meta del ascenso. */
   apogeeKm: number;
   /** Velocidad de corte de motores de esa misma ruta, en km/s. */
   burnoutSpeedKms: number;
   reducedMotion: boolean;
+  /** Puertos de la ruta cotizada: el suelo que se sobrevuela es el suyo. */
+  from: GeoPoint;
+  to: GeoPoint;
   /** Posición lateral pedida por el mando (puntero o teclado). */
   steerRef: RefObject<SteerTarget>;
   onTelemetry: (telemetry: AscentTelemetry) => void;
@@ -318,6 +282,8 @@ export function AscentScene({
   apogeeKm,
   burnoutSpeedKms,
   reducedMotion,
+  from,
+  to,
   steerRef,
   onTelemetry,
   onDone,
@@ -386,17 +352,17 @@ export function AscentScene({
         position={[0, 0, 10]}
         fov={44}
         near={0.1}
-        far={400}
+        far={2200}
       />
 
       {/* cielo: azul de troposfera al negro de vacío conforme se sube */}
       <mesh ref={skyRef}>
-        <sphereGeometry args={[220, 24, 16]} />
+        <sphereGeometry args={[1400, 24, 16]} />
         <meshBasicMaterial color={SKY_LOW} side={BackSide} depthWrite={false} />
       </mesh>
       <Stars
-        radius={140}
-        depth={60}
+        radius={900}
+        depth={220}
         count={reducedMotion ? 800 : 2200}
         factor={3}
         saturation={0}
@@ -414,7 +380,14 @@ export function AscentScene({
         decay={1.7}
       />
 
-      <PlanetBelow stateRef={stateRef} />
+      {/* El planeta va en su propio Suspense: mientras cargan las texturas se
+          ve la esfera lisa y el ascenso sigue jugándose, en vez de quedarse el
+          lienzo entero en blanco. */}
+      <EarthBelow stateRef={stateRef} from={from} to={to}>
+        <Suspense fallback={<PlainEarth />}>
+          <EarthSurface />
+        </Suspense>
+      </EarthBelow>
       <Streaks stateRef={stateRef} />
 
       {Array.from({ length: GATE_COUNT }, (_, i) => (

@@ -240,3 +240,15 @@ h4 {
   background: var(--brand-500);
   color: #ffffff;
 }
+
+/* Bordes del carrusel de fases: las tarjetas laterales se van en degradado en
+   vez de cortarse a hachazo contra el canto del contenedor */
+@utility carousel-fade {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    #000 11%,
+    #000 89%,
+    transparent 100%
+  );
+}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion, type PanInfo } from "framer-motion";
+import { motion, type PanInfo } from "framer-motion";
 import {
   ArrowRight,
   Box,
@@ -30,9 +30,19 @@ const STEP_IMAGES = [
   "/journey/step-6.jpg",
 ];
 
-/** Relación nativa de las imágenes (1000×545): el marco se adapta a ellas y no
- *  al revés, así ninguna fase se ve recortada por arriba o por abajo. */
-const MEDIA_ASPECT = "aspect-[1000/545]";
+/**
+ * Proporción de la tarjeta. En pantalla ancha es la nativa de las imágenes
+ * (1000×545) y no se recorta nada; en el móvil se pone de pie, porque con el
+ * apaisado la tarjeta queda tan baja que el titular y su línea se comen la foto.
+ */
+const CARD_ASPECT = "aspect-[4/5] sm:aspect-[1000/545]";
+
+/**
+ * Alto del escenario: el justo para la tarjeta del centro en cada tamaño —
+ * ancho de la tarjeta partido por su proporción. Si el escenario fuese más
+ * bajo, la tarjeta se saldría por arriba y por abajo.
+ */
+const STAGE_ASPECT = "aspect-[9/10] sm:aspect-[2/1] md:aspect-[2.5/1]";
 
 const AUTOPLAY_MS = 7000;
 
@@ -106,17 +116,52 @@ const COPY = {
   },
 } as const;
 
-const slideVariants = {
-  enter: (direction: number) => ({
-    x: direction >= 0 ? "100%" : "-100%",
-    opacity: 0,
-  }),
-  center: { x: 0, opacity: 1 },
-  exit: (direction: number) => ({
-    x: direction >= 0 ? "-40%" : "40%",
-    opacity: 0,
-  }),
-};
+/** Tarjetas que se ven a cada lado de la que manda. */
+const SIDE_CARDS = 2;
+
+/**
+ * Sitio de cada tarjeta según su distancia a la del centro: cuanto más lejos,
+ * más pequeña, más girada de perfil y más apagada. De ahí sale la profundidad
+ * del carrusel — el recorrido se lee como una fila de fases que viene hacia ti.
+ */
+const SLOTS = [
+  { x: 0, scale: 1, rotateY: 0, opacity: 1 },
+  { x: 58, scale: 0.78, rotateY: 24, opacity: 0.78 },
+  { x: 100, scale: 0.6, rotateY: 30, opacity: 0.3 },
+] as const;
+
+interface Slot {
+  x: string;
+  scale: number;
+  rotateY: number;
+  opacity: number;
+  zIndex: number;
+}
+
+/**
+ * Distancia con la vuelta dada: la fase 1 está a un paso de la 6, no a cinco.
+ * Sin esto el carrusel daría un barrido entero al pasar del final al principio.
+ */
+function ringDistance(index: number, active: number, total: number): number {
+  const raw = index - active;
+  const wrapped = ((raw % total) + total) % total;
+  return wrapped > total / 2 ? wrapped - total : wrapped;
+}
+
+function slotFor(distance: number): Slot {
+  const depth = Math.min(Math.abs(distance), SLOTS.length - 1);
+  const slot = SLOTS[depth];
+  const side = Math.sign(distance);
+
+  return {
+    x: `${slot.x * side}%`,
+    scale: slot.scale,
+    // Las de la derecha enseñan su canto izquierdo y al revés: miran al centro.
+    rotateY: slot.rotateY * side,
+    opacity: slot.opacity,
+    zIndex: SLOTS.length - depth,
+  };
+}
 
 export function Journey() {
   const { lang } = useLanguage();
@@ -124,22 +169,18 @@ export function Journey() {
   const reducedMotion = useReducedMotion();
   const total = c.steps.length;
 
-  // `direction` decide desde qué lado entra la fase siguiente.
-  const [[active, direction], setSlide] = useState<[number, number]>([0, 0]);
+  /** La fase que manda; el resto se colocan respecto a ella. */
+  const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
 
   const goTo = useCallback(
-    (next: number) =>
-      setSlide(([current]) => [
-        (next + total) % total,
-        next > current ? 1 : -1,
-      ]),
+    (next: number) => setActive(((next % total) + total) % total),
     [total],
   );
 
   const step = useCallback(
     (delta: number) =>
-      setSlide(([current]) => [(current + delta + total) % total, delta]),
+      setActive((current) => (current + delta + total) % total),
     [total],
   );
 
@@ -151,12 +192,16 @@ export function Journey() {
   }, [paused, reducedMotion, step]);
 
   const handleDragEnd = (_: unknown, info: PanInfo) => {
+    // Cuenta el impulso, no sólo lo que se ha arrastrado: un golpe corto y
+    // rápido pasa de fase igual que un arrastre largo y lento.
     const throw_ = info.offset.x + info.velocity.x * 0.2;
     if (throw_ < -80) step(1);
     else if (throw_ > 80) step(-1);
   };
 
-  const current = c.steps[active];
+  const slide = reducedMotion
+    ? { duration: 0 }
+    : { type: "spring" as const, stiffness: 190, damping: 28, mass: 0.9 };
 
   return (
     <Section id="viaje" className="border-t border-border">
@@ -196,78 +241,129 @@ export function Journey() {
         </div>
       </Reveal>
 
-      {/* Una fase a la vez: el marco tiene la proporción nativa de la imagen y
-          las diapositivas se desplazan dentro de él. */}
+      {/* El carrusel: todas las fases están en el escenario a la vez y lo que
+          cambia es su sitio en profundidad. Se arrastra, se hace clic en una
+          lateral para traerla al frente y avanza solo mientras no lo toques. */}
       <Reveal delay={0.1} scaleFrom={0.96} distance={40}>
         <div
-          className={`relative mt-10 w-full overflow-hidden rounded-2xl border border-border bg-space-900 ${MEDIA_ASPECT}`}
+          className="relative mt-10"
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
           onFocusCapture={() => setPaused(true)}
           onBlurCapture={() => setPaused(false)}
         >
-          <AnimatePresence initial={false} custom={direction}>
-            <motion.div
-              key={active}
-              custom={direction}
-              variants={slideVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{
-                x: {
-                  duration: reducedMotion ? 0 : 0.6,
-                  ease: [0.22, 1, 0.36, 1],
-                },
-                opacity: { duration: reducedMotion ? 0 : 0.4 },
-              }}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.16}
-              onDragEnd={handleDragEnd}
-              className="absolute inset-0 cursor-grab active:cursor-grabbing"
-            >
-              <StepMedia
-                src={STEP_IMAGES[active]}
-                alt={current.title}
-                pending={c.pending}
-              />
+          <motion.div
+            className={`carousel-fade relative w-full cursor-grab touch-pan-y overflow-hidden perspective-[1600px] active:cursor-grabbing ${STAGE_ASPECT}`}
+            aria-roledescription="carousel"
+            aria-label={c.eyebrow}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.14}
+            onDragEnd={handleDragEnd}
+          >
+            {c.steps.map((s, index) => {
+              const distance = ringDistance(index, active, total);
+              const isActive = distance === 0;
+              const slot = slotFor(distance);
+              const hidden = Math.abs(distance) > SIDE_CARDS;
 
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-space-950 via-space-950/35 to-transparent" />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-space-950/80 via-transparent to-transparent" />
+              return (
+                <div
+                  key={index}
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                >
+                  <motion.article
+                    aria-hidden={hidden}
+                    className={`pointer-events-auto relative w-[88%] overflow-hidden rounded-2xl border bg-space-900 shadow-[0_30px_80px_-40px_rgba(2,8,20,0.95)] backface-hidden md:w-[68%] ${CARD_ASPECT} ${
+                      isActive ? "border-pulse-blue/45" : "border-border"
+                    }`}
+                    initial={false}
+                    animate={{
+                      ...slot,
+                      opacity: hidden ? 0 : slot.opacity,
+                    }}
+                    transition={{
+                      ...slide,
+                      opacity: { duration: reducedMotion ? 0 : 0.45 },
+                    }}
+                  >
+                    {/* Ken Burns sólo en la del frente: la imagen respira
+                        durante la fase y se queda quieta en las laterales. */}
+                    <motion.div
+                      className="absolute inset-0"
+                      animate={{ scale: isActive && !reducedMotion ? 1.06 : 1 }}
+                      transition={{
+                        duration: isActive ? AUTOPLAY_MS / 1000 : 0.6,
+                        ease: "linear",
+                      }}
+                    >
+                      <StepMedia
+                        src={STEP_IMAGES[index]}
+                        alt={s.title}
+                        pending={c.pending}
+                      />
+                    </motion.div>
 
-              <motion.div
-                key={`copy-${active}`}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.15 }}
-                className="absolute inset-x-0 bottom-0 p-6 md:p-10"
-              >
-                <span className="font-mono text-[11px] tracking-[0.18em] text-pulse-cyan">
-                  {c.phase} {String(active + 1).padStart(2, "0")}
-                </span>
-                <h3 className="mt-2 font-display text-[26px] leading-tight text-foreground md:text-[34px]">
-                  {current.title}
-                </h3>
-                <p className="mt-2 max-w-md text-[14px] text-space-300 md:text-[16px]">
-                  {current.desc}
-                </p>
-              </motion.div>
-            </motion.div>
-          </AnimatePresence>
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-space-950 via-space-950/35 to-transparent" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-space-950/80 via-transparent to-transparent" />
+                    {/* Velo de las laterales: hunde en el fondo lo que no toca. */}
+                    <motion.div
+                      className="pointer-events-none absolute inset-0 bg-space-950"
+                      initial={false}
+                      animate={{ opacity: isActive ? 0 : 0.3 }}
+                      transition={{ duration: reducedMotion ? 0 : 0.45 }}
+                    />
 
-          {/* Barra de avance del autoplay */}
+                    <div className="absolute inset-x-0 bottom-0 p-5 md:p-8">
+                      <span className="font-mono text-[11px] tracking-[0.18em] text-pulse-cyan">
+                        {c.phase} {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <h3 className="mt-2 font-display text-[20px] leading-tight text-foreground md:text-[32px]">
+                        {s.title}
+                      </h3>
+                      <motion.p
+                        className="max-w-md text-[14px] text-space-300 md:text-[16px]"
+                        initial={false}
+                        animate={{
+                          opacity: isActive ? 1 : 0,
+                          height: isActive ? "auto" : 0,
+                          marginTop: isActive ? 8 : 0,
+                        }}
+                        transition={{ duration: reducedMotion ? 0 : 0.4 }}
+                      >
+                        {s.desc}
+                      </motion.p>
+                    </div>
+
+                    {/* Las laterales son un botón entero: un clic las trae. */}
+                    {!isActive && !hidden && (
+                      <button
+                        type="button"
+                        onClick={() => goTo(index)}
+                        aria-label={`${c.phase} ${index + 1}: ${s.title}`}
+                        className="absolute inset-0 cursor-pointer"
+                      />
+                    )}
+                  </motion.article>
+                </div>
+              );
+            })}
+          </motion.div>
+
+          {/* Cuenta atrás del avance automático, al pie de la tarjeta del frente */}
           {!reducedMotion && (
-            <motion.div
-              key={`bar-${active}-${paused}`}
-              className="absolute inset-x-0 top-0 h-0.5 origin-left bg-pulse-cyan/70"
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: paused ? 0 : 1 }}
-              transition={{
-                duration: paused ? 0 : AUTOPLAY_MS / 1000,
-                ease: "linear",
-              }}
-            />
+            <div className="mx-auto mt-4 h-0.5 w-[88%] overflow-hidden bg-border md:w-[68%]">
+              <motion.div
+                key={`bar-${active}-${paused}`}
+                className="h-full origin-left bg-pulse-cyan/70"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: paused ? 0 : 1 }}
+                transition={{
+                  duration: paused ? 0 : AUTOPLAY_MS / 1000,
+                  ease: "linear",
+                }}
+              />
+            </div>
           )}
 
           <SideButton side="left" label={c.prev} onClick={() => step(-1)}>

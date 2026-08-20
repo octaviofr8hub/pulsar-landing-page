@@ -365,3 +365,35 @@ export function shuffledBag(random: () => number = Math.random): PieceKind[] {
   }
   return bag;
 }
+
+/**
+ * Cofia de muestra para el escaparate del cotizador: una estiba plausible,
+ * siempre la misma. Determinista a propósito — el escaparate se pinta en el
+ * primer render y con `Math.random()` no habría hidratación que valiese.
+ */
+export function previewGrid(): Grid {
+  const layout: readonly (readonly (readonly Cell[])[])[] = [
+    [
+      ["square", "square", "bar4", "bar4"],
+      ["square", "square", "bar4", "bar4"],
+      ["ell", "ell", "ell", "pair"],
+      ["ell", "corner", "corner", "pair"],
+    ],
+    [
+      ["bar3", "bar3", "bar3", "unit"],
+      ["tee", "tee", "tee", "unit"],
+      ["corner", "tee", "pair", "pair"],
+      ["corner", "corner", null, null],
+    ],
+    [
+      ["pair", "pair", "square", "square"],
+      ["unit", null, "square", "square"],
+      [null, null, null, null],
+      [null, null, null, null],
+    ],
+  ];
+
+  return createGrid().map((level, y) =>
+    level.map((row, z) => row.map((_, x) => layout[y]?.[z]?.[x] ?? null)),
+  );
+}

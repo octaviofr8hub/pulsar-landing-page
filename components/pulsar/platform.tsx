@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { CargoBay } from "@/components/cargo/cargo-bay";
+import { BayGame } from "@/components/cargo/bay-game";
 import { GlobeCanvas, buildSingleRoute } from "@/components/globe/globe-canvas";
 import type { GlobeHub } from "@/components/globe/types";
 import { useLanguage } from "@/components/i18n/use-language";
@@ -377,6 +377,9 @@ export function Platform() {
     return {
       distanceKm,
       profile,
+      // Los puertos elegidos, para que el minijuego sobrevuele esta ruta.
+      from: { lat: a.lat, lon: a.lon },
+      to: { lat: b.lat, lon: b.lon },
       economics,
       box,
       volumeM3,
@@ -487,9 +490,11 @@ export function Platform() {
               {/* bahía jugable + ficha de dimensiones, como en el mockup:
                   el bulto a la izquierda y sus cifras en columna a la derecha */}
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_136px]">
-                <CargoBay
+                <BayGame
                   apogeeKm={quote.profile.apogeeKm}
                   burnoutSpeedKms={quote.profile.burnoutSpeedKms}
+                  from={quote.from}
+                  to={quote.to}
                 />
                 <div className="flex flex-col gap-1.5">
                   <div className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground">

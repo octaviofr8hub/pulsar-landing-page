@@ -70,6 +70,12 @@ export interface LandingTelemetry {
   /** Mando de actitud que se está aplicando, de −1 a 1 — lo dibuja el HUD. */
   commandX: number;
   commandZ: number;
+  /** Inclinación real en cada eje, en radianes: el tablero la dibuja. */
+  tiltX: number;
+  tiltZ: number;
+  /** Desvío respecto al centro de la cubierta en cada eje, en metros. */
+  offsetX: number;
+  offsetZ: number;
 }
 
 /* ── Decorado ────────────────────────────────────────────────────────────── */
@@ -714,6 +720,10 @@ export function LandingScene({
         urgency: brakingUrgency(state),
         commandX: armed ? command.x : 0,
         commandZ: armed ? command.z : 0,
+        tiltX: state.tiltX,
+        tiltZ: state.tiltZ,
+        offsetX: state.x,
+        offsetZ: state.z,
       });
     }
 

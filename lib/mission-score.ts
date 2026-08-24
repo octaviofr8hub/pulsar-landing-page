@@ -13,16 +13,25 @@
 import { BAY_VOLUME_M3 } from "./cargo-bay";
 import type { LandingResult } from "./cargo-landing";
 
-/** Puntos que reparte cada acto. */
+/**
+ * Puntos que reparte cada acto. El primero va partido en dos a propósito:
+ * cuánta carga metiste y **cómo** la metiste. Meter volumen dejando aire debajo
+ * no es estibar, y el marcador tiene que decirlo por separado para que se vea
+ * cuál de las dos cosas hay que mejorar.
+ */
 export const SCORE_WEIGHTS = {
-  stow: 400,
+  volume: 250,
+  stowage: 150,
   guidance: 300,
   landing: 300,
 } as const;
 
 /** Total en juego. */
 export const SCORE_TOTAL =
-  SCORE_WEIGHTS.stow + SCORE_WEIGHTS.guidance + SCORE_WEIGHTS.landing;
+  SCORE_WEIGHTS.volume +
+  SCORE_WEIGHTS.stowage +
+  SCORE_WEIGHTS.guidance +
+  SCORE_WEIGHTS.landing;
 
 /**
  * Carga que hace pleno en el primer acto, en m³: la mitad del volumen útil de
@@ -51,6 +60,8 @@ const RANKS: readonly (readonly [MissionRank, number])[] = [
 export interface MissionInput {
   /** Metros cúbicos estibados y embarcados. */
   stowedM3: number;
+  /** Aprovechamiento del volumen abierto, de 0 a 1. */
+  use: number;
   /** Aros de guiado cruzados, de 0 a 1. */
   guidance: number;
   /** Resultado del aterrizaje; `null` si la misión no llegó a él. */
@@ -58,7 +69,8 @@ export interface MissionInput {
 }
 
 export interface MissionScore {
-  stow: number;
+  volume: number;
+  stowage: number;
   guidance: number;
   landing: number;
   total: number;
@@ -76,11 +88,15 @@ function rankOf(total: number): MissionRank {
  */
 export function missionScore({
   stowedM3,
+  use,
   guidance,
   landing,
 }: MissionInput): MissionScore {
-  const stow = Math.round(
-    SCORE_WEIGHTS.stow * Math.min(1, stowedM3 / FULL_LOAD_M3),
+  const volume = Math.round(
+    SCORE_WEIGHTS.volume * Math.min(1, stowedM3 / FULL_LOAD_M3),
+  );
+  const stowage = Math.round(
+    SCORE_WEIGHTS.stowage * Math.min(1, Math.max(0, use)),
   );
   const guided = Math.round(
     SCORE_WEIGHTS.guidance * Math.min(1, Math.max(0, guidance)),
@@ -95,6 +111,13 @@ export function missionScore({
         )
       : 0;
 
-  const total = stow + guided + landed;
-  return { stow, guidance: guided, landing: landed, total, rank: rankOf(total) };
+  const total = volume + stowage + guided + landed;
+  return {
+    volume,
+    stowage,
+    guidance: guided,
+    landing: landed,
+    total,
+    rank: rankOf(total),
+  };
 }

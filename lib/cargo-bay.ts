@@ -397,3 +397,58 @@ export function previewGrid(): Grid {
     level.map((row, z) => row.map((_, x) => layout[y]?.[z]?.[x] ?? null)),
   );
 }
+
+/** Cómo va la estiba, para que el juego pueda decirlo con palabras. */
+export type StowageGrade = "tight" | "good" | "loose" | "airy";
+
+export interface StowageStats {
+  /** Posiciones ocupadas ahora mismo en la cofia. */
+  occupied: number;
+  /** Cubiertas empezadas: la altura de la pila. */
+  height: number;
+  /** Huecos tapados: aire que ya no se puede rellenar. */
+  holes: number;
+  /** Metros cúbicos de ese aire atrapado. */
+  holesM3: number;
+  /**
+   * Aprovechamiento de la misión, de 0 a 1: lo estibado entre el volumen que se
+   * ha llegado a abrir. Las cubiertas consolidadas cuentan como llenas —sólo se
+   * cierran cuando lo están—, así que consolidar bien no penaliza la cifra.
+   */
+  use: number;
+  grade: StowageGrade;
+}
+
+/**
+ * Radiografía de la estiba. Es la estadística que el juego enseña en vivo: no
+ * basta con meter volumen, hay que meterlo sin dejar aire debajo — que es
+ * exactamente el argumento de la sección.
+ */
+export function stowageStats(grid: Grid, shipped: number): StowageStats {
+  const occupied = occupiedCells(grid);
+  const height = stackHeight(grid);
+  const holes = holeCount(grid);
+  const opened = shipped + height * LEVEL_CELLS;
+  const use = opened === 0 ? 0 : (occupied + shipped) / opened;
+
+  // "airy" es sólo para el aire **atrapado**: una cubierta a medio llenar
+  // todavía se puede completar, un hueco tapado no. Mezclarlos hacía que el
+  // juego regañase por empezar una cubierta nueva, que no es ningún error.
+  const grade: StowageGrade =
+    holes >= 3 || (holes > 0 && use < 0.72)
+      ? "airy"
+      : use >= 0.9 && holes === 0
+        ? "tight"
+        : use >= 0.72
+          ? "good"
+          : "loose";
+
+  return {
+    occupied,
+    height,
+    holes,
+    holesM3: holes * CELL_VOLUME_M3,
+    use,
+    grade,
+  };
+}

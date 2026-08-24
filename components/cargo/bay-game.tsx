@@ -46,12 +46,13 @@ import {
   lockPiece,
   movePiece,
   movePieceTo,
-  occupiedCells,
   pieceCells,
   rotatePiece,
   shuffledBag,
   spawnPiece,
-  stackHeight,
+  stowageStats,
+  type StowageGrade,
+  type StowageStats,
   type ActivePiece,
   type Grid,
   type PieceKind,
@@ -64,10 +65,13 @@ import {
 } from "@/lib/cargo-ascent";
 import {
   APPROACH_ALTITUDE_M,
+  COMMAND_TILT_RAD,
+  GRAVITY_MS2,
   IDLE_COMMAND,
   MAX_TILT_RAD,
   MAX_TOUCHDOWN_MS,
   PAD_RADIUS_M,
+  THRUST_MS2,
   type LandingCommand,
   type LandingResult,
   type LandingVerdict,
@@ -134,13 +138,22 @@ const COPY = {
       { keys: ["A"], action: "Piloto automático" },
       { keys: ["F"], action: "Pantalla completa" },
     ] as readonly ControlHint[],
-    engine: "Motor",
-    engineKeys: "Clic / Espacio",
+    thrust: "Empuje",
     attitude: "Actitud",
-    attitudeKeys: "Puntero / Flechas",
+    position: "Posición",
+    braking: "Margen de frenada",
+    limits: "Límites de toma",
+    holes: "Huecos",
+    grades: {
+      tight: "Estiba impecable: no queda aire dentro de la cofia.",
+      good: "Buen aprovechamiento. Cierra la cubierta antes de subir otra.",
+      loose: "Cubierta a medias: acábala antes de empezar la de encima.",
+      airy: "Estás tapando huecos: ese aire ya no se recupera en toda la misión.",
+    } as Record<StowageGrade, string>,
     climbing: "Subiendo · suelta el gas",
     score: "Puntuación",
-    scoreStow: "Estiba",
+    scoreVolume: "Volumen",
+    scoreStowage: "Aprovechamiento",
     scoreGuidance: "Guiado",
     scoreLanding: "Aterrizaje",
     ranks: {
@@ -152,9 +165,7 @@ const COPY = {
     } as Record<MissionRank, string>,
     descent: "Descenso",
     climb: "Ascenso",
-    offset: "Desvío",
     fuel: "Propelente",
-    tilt: "Inclinación",
     brake: "Frenar",
     autoland: "Piloto automático IA",
     retry: "Reintentar aterrizaje",
@@ -222,13 +233,22 @@ const COPY = {
       { keys: ["A"], action: "Autopilot" },
       { keys: ["F"], action: "Full screen" },
     ] as readonly ControlHint[],
-    engine: "Engine",
-    engineKeys: "Click / Space",
+    thrust: "Thrust",
     attitude: "Attitude",
-    attitudeKeys: "Pointer / Arrows",
+    position: "Position",
+    braking: "Braking margin",
+    limits: "Touchdown limits",
+    holes: "Trapped air",
+    grades: {
+      tight: "Flawless stow: no air left inside the fairing.",
+      good: "Good use of the volume. Close the deck before starting another.",
+      loose: "Deck half done: finish it before starting the one above.",
+      airy: "You are burying gaps: that air is lost for the rest of the mission.",
+    } as Record<StowageGrade, string>,
     climbing: "Climbing · ease off",
     score: "Score",
-    scoreStow: "Stowage",
+    scoreVolume: "Volume",
+    scoreStowage: "Utilisation",
     scoreGuidance: "Guidance",
     scoreLanding: "Landing",
     ranks: {
@@ -240,9 +260,7 @@ const COPY = {
     } as Record<MissionRank, string>,
     descent: "Descent",
     climb: "Climb",
-    offset: "Offset",
     fuel: "Propellant",
-    tilt: "Tilt",
     brake: "Brake",
     autoland: "AI autopilot",
     retry: "Retry landing",
@@ -405,9 +423,15 @@ const EMPTY_LANDING: LandingTelemetry = {
   urgency: 0,
   commandX: 0,
   commandZ: 0,
+  tiltX: 0,
+  tiltZ: 0,
+  offsetX: 0,
+  offsetZ: 0,
 };
 
 const MAX_TILT_DEG = (MAX_TILT_RAD * 180) / Math.PI;
+/** Fondo de escala del reloj de caída, en m/s. */
+const DESCENT_FULL_SCALE = 45;
 
 export interface BayGameProps {
   className?: string;
@@ -459,7 +483,7 @@ export function BayGame({
   const [autoRotate, setAutoRotate] = useState(true);
   const [phase, setPhase] = useState<Phase>("stow");
   /** Foto de la carga en el momento del despegue: es lo que resume la misión. */
-  const [flown, setFlown] = useState({ m3: 0, decks: 0 });
+  const [flown, setFlown] = useState({ m3: 0, decks: 0, use: 0 });
   const [telemetry, setTelemetry] = useState<AscentTelemetry>(EMPTY_TELEMETRY);
   const [guidance, setGuidance] = useState(1);
   const [landing, setLanding] = useState<LandingTelemetry>(EMPTY_LANDING);
@@ -552,22 +576,20 @@ export function BayGame({
   );
 
   const metrics = useMemo(() => {
-    const occupied = occupiedCells(state.grid);
-    const height = stackHeight(state.grid);
+    const stats = stowageStats(state.grid, state.shipped);
     return {
-      // Aprovechamiento de las cubiertas usadas: cuánto aire queda dentro.
-      used: height === 0 ? 0 : occupied / (height * LEVEL_CELLS),
-      stowedM3: (occupied + state.shipped) * CELL_VOLUME_M3,
+      ...stats,
+      stowedM3: (stats.occupied + state.shipped) * CELL_VOLUME_M3,
     };
   }, [state.grid, state.shipped]);
 
   const launch = useCallback(() => {
     if (phase !== "stow") return;
-    setFlown({ m3: metrics.stowedM3, decks: state.levels });
+    setFlown({ m3: metrics.stowedM3, decks: state.levels, use: metrics.use });
     setTelemetry(EMPTY_TELEMETRY);
     steerRef.current = { x: 0, z: 0 };
     setPhase("launching");
-  }, [phase, metrics.stowedM3, state.levels]);
+  }, [phase, metrics.stowedM3, metrics.use, state.levels]);
 
   /** Deja el cohete en la vertical de la barcaza, listo para tomar el mando. */
   const armLanding = useCallback(() => {
@@ -625,8 +647,13 @@ export function BayGame({
   /** Marcador de la misión: los tres actos, con su desglose. */
   const score = useMemo(
     () =>
-      missionScore({ stowedM3: flown.m3, guidance, landing: outcome }),
-    [flown.m3, guidance, outcome],
+      missionScore({
+        stowedM3: flown.m3,
+        use: flown.use,
+        guidance,
+        landing: outcome,
+      }),
+    [flown.m3, flown.use, guidance, outcome],
   );
 
   const hasCargo = metrics.stowedM3 > 0;
@@ -809,6 +836,8 @@ export function BayGame({
 
   const landingPhase = phase === "landing";
   const inFlight = flying || landingPhase;
+  /** Ampliado hay sitio para instrumentos grandes; encajado, no. */
+  const board: BoardSize = expanded ? "lg" : "sm";
 
   return (
     <div
@@ -948,7 +977,8 @@ export function BayGame({
                   label={c.score}
                   rank={c.ranks[score.rank]}
                   rows={[
-                    [c.scoreStow, score.stow, SCORE_WEIGHTS.stow],
+                    [c.scoreVolume, score.volume, SCORE_WEIGHTS.volume],
+                    [c.scoreStowage, score.stowage, SCORE_WEIGHTS.stowage],
                     [c.scoreGuidance, score.guidance, SCORE_WEIGHTS.guidance],
                     [c.scoreLanding, score.landing, SCORE_WEIGHTS.landing],
                   ]}
@@ -969,16 +999,40 @@ export function BayGame({
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-2.5">
           {landingPhase ? (
             <>
-              <Readout
-                label={c.altitude}
-                value={`${Math.round(landing.altitudeM)} m`}
-              />
-              <Readout
-                label={c.fuel}
-                value={`${Math.round(landing.fuel * 100)}%`}
-                align="right"
-                tone={landing.fuel < 0.2 ? "warn" : "plain"}
-              />
+              <div>
+                <Readout
+                  label={c.altitude}
+                  value={`${Math.round(landing.altitudeM)} m`}
+                />
+                {/* Margen de frenada: cuánto de la altura que queda se comería
+                    una parada a tope de gas. Es la cifra que decide cuándo hay
+                    que encender, así que va dibujada, no sólo avisada. */}
+                <div className="mt-1.5 w-[132px]">
+                  <div className="whitespace-nowrap font-mono text-[8px] tracking-[0.14em] text-space-400">
+                    {c.braking.toUpperCase()}
+                  </div>
+                  <div className="mt-0.5 h-[4px] w-full overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className={`h-full rounded-full transition-[width] duration-150 ${
+                        landing.urgency > 0.85
+                          ? "bg-amber-300"
+                          : "bg-pulse-cyan"
+                      }`}
+                      style={{
+                        width: `${Math.round(Math.min(1, landing.urgency) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+              {/* Placa de límites: contra esto se juzga la toma. */}
+              <div className="text-right font-mono text-[9px] leading-relaxed text-space-400">
+                <div className="tracking-[0.18em]">{c.limits.toUpperCase()}</div>
+                <div className="text-space-300">
+                  ≤ {MAX_TOUCHDOWN_MS} m/s · ≤ {Math.round(MAX_TILT_DEG)}° · ⌀{" "}
+                  {PAD_RADIUS_M} m
+                </div>
+              </div>
             </>
           ) : flying ? (
             <>
@@ -995,8 +1049,8 @@ export function BayGame({
           ) : (
             <>
               <Readout
-                label={c.used}
-                value={`${Math.round(metrics.used * 100)}%`}
+                label={c.stowed}
+                value={`${metrics.stowedM3.toFixed(1)} m³`}
               />
               <div className="text-right">
                 <div className="font-mono text-[9px] tracking-[0.18em] text-muted-foreground">
@@ -1028,72 +1082,26 @@ export function BayGame({
           </div>
         )}
 
-        {/* Los dos mandos, siempre a la vista mientras se pilota: qué se pulsa
-            y qué está haciendo. Sin esto no hay forma de saber que el clic es
-            el motor y el puntero, la inclinación. */}
-        {piloting && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-10 flex items-end justify-between px-2.5">
-            <ThrottleGauge
-              label={c.engine}
-              hint={c.engineKeys}
-              value={landing.throttle}
-            />
-            <AttitudeStick
-              label={c.attitude}
-              hint={c.attitudeKeys}
-              x={landing.commandX}
-              z={landing.commandZ}
-            />
-          </div>
-        )}
-
-        {/* Franja inferior: la carga a bordo, la telemetría del ascenso o los
-            tres números que deciden el aterrizaje. La barra de avance va pegada
-            al canto, como el marcador de una misión. */}
+        {/* Tablero de la fase: los relojes de lo que está pasando. Cada acto
+            tiene los suyos, y el de aterrizaje es el que de verdad se pilota. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0">
-          <div className="flex items-end justify-between gap-3 bg-gradient-to-t from-space-950 to-transparent px-2.5 pb-2 pt-6 font-mono text-[10px] text-muted-foreground">
-            {landingPhase ? (
-              <>
-                <Gauge
-                  label={landing.descentMs < 0 ? c.climb : c.descent}
-                  value={`${Math.abs(landing.descentMs).toFixed(1)} m/s`}
-                  warn={
-                    landing.descentMs < -1 ||
-                    (landing.altitudeM < 40 &&
-                      landing.descentMs > MAX_TOUCHDOWN_MS)
-                  }
-                />
-                <Gauge
-                  label={c.offset}
-                  value={`${landing.offsetM.toFixed(1)} m`}
-                  warn={landing.offsetM > PAD_RADIUS_M}
-                />
-                <Gauge
-                  label={c.tilt}
-                  value={`${landing.tiltDeg.toFixed(1)}°`}
-                  warn={landing.tiltDeg > MAX_TILT_DEG}
-                />
-              </>
+          <div className="bg-gradient-to-t from-space-950 via-space-950/85 to-transparent px-3 pb-2 pt-7">
+            {phase === "debrief" ? null : landingPhase ? (
+              <LandingBoard c={c} landing={landing} size={board} />
             ) : flying ? (
-              <>
-                <span>{c.steerHint}</span>
-                <span className="shrink-0 text-pulse-cyan">
-                  {telemetry.speedKms.toFixed(2)} km/s
-                </span>
-              </>
+              <AscentBoard
+                c={c}
+                telemetry={telemetry}
+                burnoutSpeedKms={burnoutSpeedKms}
+                size={board}
+              />
             ) : (
-              <>
-                <span>
-                  {c.stowed}{" "}
-                  <span className="text-foreground">
-                    {metrics.stowedM3.toFixed(1)} m³
-                  </span>
-                </span>
-                <span>
-                  {c.levels}{" "}
-                  <span className="text-foreground">{state.levels}</span>
-                </span>
-              </>
+              <StowBoard
+                c={c}
+                stats={metrics}
+                decks={state.levels}
+                size={board}
+              />
             )}
           </div>
           {flying && (
@@ -1187,21 +1195,406 @@ export function BayGame({
   );
 }
 
-/** Dato del HUD de aterrizaje: se pone ámbar cuando se sale de límites. */
-function Gauge({
+/** Tamaño del tablero: encajado en el cotizador o ampliado a pantalla. */
+type BoardSize = "sm" | "lg";
+
+const INSTRUMENT_BOX: Record<BoardSize, string> = {
+  sm: "h-[46px] w-[46px]",
+  lg: "h-[76px] w-[76px]",
+};
+const INSTRUMENT_VALUE: Record<BoardSize, string> = {
+  sm: "text-[11px]",
+  lg: "text-[18px]",
+};
+const INSTRUMENT_UNIT: Record<BoardSize, string> = {
+  sm: "text-[7px]",
+  lg: "text-[9px]",
+};
+const INSTRUMENT_LABEL =
+  "font-mono text-[8px] tracking-[0.14em] text-space-400";
+
+/** Grados que barre la aguja y desde dónde arranca (0° = las tres en punto). */
+const DIAL_SWEEP = 270;
+const DIAL_START = 135;
+const DIAL_RADIUS = 40;
+const DIAL_LENGTH = 2 * Math.PI * DIAL_RADIUS;
+/** Aro exterior donde se marca el tramo bueno de la escala. */
+const DIAL_BAND_RADIUS = 47;
+const DIAL_BAND_LENGTH = 2 * Math.PI * DIAL_BAND_RADIUS;
+
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+/** Punto del arco para una fracción del recorrido. */
+function dialPoint(fraction: number, radius: number): [number, number] {
+  const angle = ((DIAL_START + fraction * DIAL_SWEEP) * Math.PI) / 180;
+  return [50 + Math.cos(angle) * radius, 50 + Math.sin(angle) * radius];
+}
+
+/**
+ * Reloj del tablero: arco de 270°, aguja en el canto y la cifra en el centro.
+ *
+ * `value` va de 0 a 1 —cada instrumento decide cómo escala su magnitud, que no
+ * todas son lineales— y `band` pinta el tramo bueno. Esa banda es lo que
+ * convierte un número en una lectura de un vistazo: no hay que saberse el
+ * límite, se ve si la aguja cae dentro.
+ */
+function Dial({
   label,
   value,
-  warn,
+  text,
+  unit,
+  band,
+  warn = false,
+  size,
 }: {
   label: string;
-  value: string;
-  warn: boolean;
+  value: number;
+  text: string;
+  unit?: string;
+  /** Tramo correcto de la escala, en fracciones del recorrido. */
+  band?: readonly [number, number];
+  warn?: boolean;
+  size: BoardSize;
+}) {
+  const fraction = clamp01(value);
+  const [nx, ny] = dialPoint(fraction, DIAL_RADIUS - 3);
+  const [bx, by] = dialPoint(fraction, DIAL_RADIUS - 13);
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className={`relative ${INSTRUMENT_BOX[size]}`}>
+        <svg viewBox="0 0 100 100" className="h-full w-full">
+          <circle
+            cx="50"
+            cy="50"
+            r={DIAL_RADIUS}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="6"
+            strokeLinecap="round"
+            className="text-space-800"
+            strokeDasharray={`${(DIAL_LENGTH * DIAL_SWEEP) / 360} ${DIAL_LENGTH}`}
+            transform="rotate(135 50 50)"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r={DIAL_RADIUS}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="6"
+            strokeLinecap="round"
+            className={warn ? "text-amber-300" : "text-pulse-blue"}
+            strokeDasharray={`${(DIAL_LENGTH * DIAL_SWEEP * fraction) / 360} ${DIAL_LENGTH}`}
+            transform="rotate(135 50 50)"
+          />
+          {/* Tramo bueno de la escala, por fuera del aro y dibujado el último:
+              debajo del valor se quedaba tapado justo cuando hace falta. */}
+          {band && (
+            <circle
+              cx="50"
+              cy="50"
+              r={DIAL_BAND_RADIUS}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              className="text-emerald-400"
+              strokeDasharray={`${(DIAL_BAND_LENGTH * DIAL_SWEEP * (band[1] - band[0])) / 360} ${DIAL_BAND_LENGTH}`}
+              strokeDashoffset={`${(-DIAL_BAND_LENGTH * DIAL_SWEEP * band[0]) / 360}`}
+              transform="rotate(135 50 50)"
+            />
+          )}
+          {/* Aguja corta, sólo en el canto: el centro queda para la cifra. */}
+          <line
+            x1={bx}
+            y1={by}
+            x2={nx}
+            y2={ny}
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            className={warn ? "text-amber-200" : "text-white"}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span
+            className={`font-display leading-none ${INSTRUMENT_VALUE[size]} ${
+              warn ? "text-amber-300" : "text-foreground"
+            }`}
+          >
+            {text}
+          </span>
+          {unit && (
+            <span
+              className={`font-mono leading-none text-space-500 ${INSTRUMENT_UNIT[size]}`}
+            >
+              {unit}
+            </span>
+          )}
+        </div>
+      </div>
+      <span className={INSTRUMENT_LABEL}>{label.toUpperCase()}</span>
+    </div>
+  );
+}
+
+/**
+ * Instrumento de dos ejes: dónde estás dentro de un límite circular. Sirve para
+ * la inclinación (hacia dónde se va el cohete y cuánto pide el mando) y para la
+ * posición sobre la cubierta — las dos cosas son un punto respecto a un centro,
+ * y verlas así es mucho más rápido que leer dos cifras.
+ */
+function PolarPlot({
+  label,
+  x,
+  y,
+  /** Valor que llega al borde del instrumento. */
+  scale,
+  /** Límite operativo, en las mismas unidades: se dibuja como aro. */
+  limit,
+  /** Segundo punto, hueco: lo que está pidiendo el mando. */
+  ghostX,
+  ghostY,
+  warn = false,
+  size,
+}: {
+  label: string;
+  x: number;
+  y: number;
+  scale: number;
+  limit: number;
+  ghostX?: number;
+  ghostY?: number;
+  warn?: boolean;
+  size: BoardSize;
+}) {
+  const toPlot = (value: number) =>
+    50 + Math.max(-1, Math.min(1, value / scale)) * 40;
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className={`relative ${INSTRUMENT_BOX[size]}`}>
+        <svg viewBox="0 0 100 100" className="h-full w-full">
+          <circle
+            cx="50"
+            cy="50"
+            r="44"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="text-space-800"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r={(limit / scale) * 40}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeDasharray="4 4"
+            className="text-amber-300/60"
+          />
+          <line
+            x1="50"
+            y1="12"
+            x2="50"
+            y2="88"
+            stroke="currentColor"
+            strokeWidth="1"
+            className="text-space-800"
+          />
+          <line
+            x1="12"
+            y1="50"
+            x2="88"
+            y2="50"
+            stroke="currentColor"
+            strokeWidth="1"
+            className="text-space-800"
+          />
+          {ghostX !== undefined && ghostY !== undefined && (
+            <circle
+              cx={toPlot(ghostX)}
+              cy={toPlot(ghostY)}
+              r="7"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-pulse-blue/70"
+            />
+          )}
+          <circle
+            cx={toPlot(x)}
+            cy={toPlot(y)}
+            r="6"
+            fill="currentColor"
+            className={warn ? "text-amber-300" : "text-pulse-cyan"}
+          />
+        </svg>
+      </div>
+      <span className={INSTRUMENT_LABEL}>{label.toUpperCase()}</span>
+    </div>
+  );
+}
+
+/**
+ * Tablero del aterrizaje. Empuje, velocidad de caída, propelente, actitud y
+ * posición sobre la cubierta: los cinco datos con los que se posa un cohete.
+ * La escala de la caída es de raíz cuadrada porque lo que importa se juega en
+ * los primeros metros por segundo; lineal, la aguja no se movía hasta el final.
+ */
+function LandingBoard({
+  c,
+  landing,
+  size,
+}: {
+  c: (typeof COPY)["es"] | (typeof COPY)["en"];
+  landing: LandingTelemetry;
+  size: BoardSize;
+}) {
+  const rate = Math.abs(landing.descentMs);
+  const rateScale = Math.sqrt(Math.min(1, rate / DESCENT_FULL_SCALE));
+  const climbing = landing.descentMs < -1;
+  const accelG = (landing.throttle * THRUST_MS2) / GRAVITY_MS2;
+
+  return (
+    <div className="flex items-end justify-center gap-2 sm:gap-3">
+      <Dial
+        label={c.thrust}
+        value={landing.throttle}
+        text={`${Math.round(landing.throttle * 100)}`}
+        unit={`${accelG.toFixed(1)} g`}
+        size={size}
+      />
+      <Dial
+        label={climbing ? c.climb : c.descent}
+        value={rateScale}
+        text={rate.toFixed(1)}
+        unit="m/s"
+        band={[0, Math.sqrt(MAX_TOUCHDOWN_MS / DESCENT_FULL_SCALE)]}
+        warn={climbing || (landing.altitudeM < 40 && rate > MAX_TOUCHDOWN_MS)}
+        size={size}
+      />
+      <PolarPlot
+        label={c.attitude}
+        x={landing.tiltX}
+        y={landing.tiltZ}
+        scale={MAX_TILT_RAD * 1.9}
+        limit={MAX_TILT_RAD}
+        ghostX={landing.commandX * COMMAND_TILT_RAD}
+        ghostY={landing.commandZ * COMMAND_TILT_RAD}
+        warn={landing.tiltDeg > MAX_TILT_DEG}
+        size={size}
+      />
+      <PolarPlot
+        label={c.position}
+        x={landing.offsetX}
+        y={landing.offsetZ}
+        scale={PAD_RADIUS_M * 2.4}
+        limit={PAD_RADIUS_M}
+        warn={landing.offsetM > PAD_RADIUS_M}
+        size={size}
+      />
+      <Dial
+        label={c.fuel}
+        value={landing.fuel}
+        text={`${Math.round(landing.fuel * 100)}`}
+        unit="%"
+        warn={landing.fuel < 0.2}
+        size={size}
+      />
+    </div>
+  );
+}
+
+/** Tablero del ascenso: la velocidad que lleva contra la de corte de la ruta. */
+function AscentBoard({
+  c,
+  telemetry,
+  burnoutSpeedKms,
+  size,
+}: {
+  c: (typeof COPY)["es"] | (typeof COPY)["en"];
+  telemetry: AscentTelemetry;
+  burnoutSpeedKms: number;
+  size: BoardSize;
 }) {
   return (
-    <span className="whitespace-nowrap">
-      {label}{" "}
-      <span className={warn ? "text-amber-300" : "text-foreground"}>{value}</span>
-    </span>
+    <div className="flex items-center gap-3">
+      <Dial
+        label={c.speed}
+        value={telemetry.speedKms / burnoutSpeedKms}
+        text={telemetry.speedKms.toFixed(1)}
+        unit="km/s"
+        size={size}
+      />
+      <Dial
+        label={c.guidance}
+        value={telemetry.passed / GATE_COUNT}
+        text={`${telemetry.passed}`}
+        unit={`/ ${GATE_COUNT}`}
+        size={size}
+      />
+      <span className="flex-1 text-right font-mono text-[10px] leading-relaxed text-muted-foreground">
+        {c.steerHint}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Tablero de la estiba: el aprovechamiento en el reloj, el aire atrapado en
+ * cifras y una línea que dice, en cristiano, si se está estibando bien. Es la
+ * estadística que el usuario pidió — que el juego te diga si aprovechas el
+ * espacio, no sólo cuánto has metido.
+ */
+function StowBoard({
+  c,
+  stats,
+  decks,
+  size,
+}: {
+  c: (typeof COPY)["es"] | (typeof COPY)["en"];
+  stats: StowageStats & { stowedM3: number };
+  decks: number;
+  size: BoardSize;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <Dial
+        label={c.used}
+        value={stats.use}
+        text={`${Math.round(stats.use * 100)}`}
+        unit="%"
+        band={[0.72, 1]}
+        warn={stats.grade === "airy"}
+        size={size}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap gap-x-3 font-mono text-[10px] text-muted-foreground">
+          <span className="whitespace-nowrap">
+            {c.stowed}{" "}
+            <span className="text-foreground">
+              {stats.stowedM3.toFixed(1)} m³
+            </span>
+          </span>
+          <span className="whitespace-nowrap">
+            {c.levels} <span className="text-foreground">{decks}</span>
+          </span>
+          <span className="whitespace-nowrap">
+            {c.holes}{" "}
+            <span className={stats.holes > 0 ? "text-amber-300" : "text-foreground"}>
+              {stats.holesM3.toFixed(1)} m³
+            </span>
+          </span>
+        </div>
+        {/* Con la cofia vacía todavía no hay estiba que juzgar: ahí la línea
+            enseña los mandos, que es lo que hace falta en ese momento. */}
+        <p className="mt-1 text-[10px] leading-snug text-space-400">
+          {stats.stowedM3 === 0 ? c.hintShort : c.grades[stats.grade]}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -1306,7 +1699,8 @@ function Overlay({
         : "text-foreground";
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-space-950/80 px-6 text-center backdrop-blur-sm">
+    <div className="absolute inset-0 overflow-y-auto bg-space-950/85 backdrop-blur-sm">
+      <div className="flex min-h-full flex-col items-center justify-center gap-1.5 px-5 py-4 text-center">
       <span className={`font-display text-[18px] ${titleTone}`}>{title}</span>
       <span className="max-w-[46ch] text-[12px] leading-relaxed text-muted-foreground">
         {sub}
@@ -1364,86 +1758,13 @@ function Overlay({
             {secondary}
           </button>
         )}
+        </div>
       </div>
     </div>
   );
 }
 
-/**
- * Mando del motor: la barra dice cuánto gas está entrando y la línea de abajo,
- * con qué se aprieta. Es la mitad del pilotaje, así que va escrito en pantalla.
- */
-function ThrottleGauge({
-  label,
-  hint,
-  value,
-}: {
-  label: string;
-  hint: string;
-  value: number;
-}) {
-  const on = value > 0.03;
 
-  return (
-    <div className="w-[92px]">
-      <div
-        className={`font-mono text-[9px] tracking-[0.18em] ${on ? "text-pulse-cyan" : "text-space-500"}`}
-      >
-        {label.toUpperCase()}
-      </div>
-      <div className="mt-1 h-[5px] w-full overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full rounded-full bg-pulse-cyan transition-[width] duration-100"
-          style={{ width: `${Math.round(value * 100)}%` }}
-        />
-      </div>
-      <div className="mt-1 font-mono text-[9px] leading-none text-space-400">
-        {hint.toUpperCase()}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Palanca de actitud: dónde está pidiendo el mando dentro de su tope. Enseña
- * también lo que pide el piloto automático, así que sirve para aprender la
- * maniobra mirándolo volar.
- */
-function AttitudeStick({
-  label,
-  hint,
-  x,
-  z,
-}: {
-  label: string;
-  hint: string;
-  x: number;
-  z: number;
-}) {
-  const clamp = (value: number) => Math.max(-1, Math.min(1, value));
-
-  return (
-    <div className="w-[92px] text-right">
-      <div className="font-mono text-[9px] tracking-[0.18em] text-space-500">
-        {label.toUpperCase()}
-      </div>
-      <div className="mt-1 ml-auto relative h-[42px] w-[42px] rounded border border-space-700 bg-space-950/60">
-        <div className="absolute inset-x-1 top-1/2 h-px -translate-y-1/2 bg-space-700" />
-        <div className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-space-700" />
-        <div
-          className="absolute h-[7px] w-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-pulse-cyan transition-all duration-150"
-          style={{
-            left: `${50 + clamp(x) * 38}%`,
-            top: `${50 + clamp(z) * 38}%`,
-          }}
-        />
-      </div>
-      <div className="mt-1 font-mono text-[9px] leading-none text-space-400">
-        {hint.toUpperCase()}
-      </div>
-    </div>
-  );
-}
 
 /**
  * Marcador de la misión: el total, el rango y de dónde salen los puntos. El
@@ -1480,7 +1801,7 @@ function ScoreBoard({
       <div className="mt-2 grid gap-1">
         {rows.map(([name, points, max]) => (
           <div key={name} className="flex items-center gap-2">
-            <span className="w-[62px] shrink-0 text-left font-mono text-[9px] tracking-[0.12em] text-space-500">
+            <span className="w-[94px] shrink-0 truncate text-left font-mono text-[8px] tracking-[0.1em] text-space-500">
               {name.toUpperCase()}
             </span>
             <span className="h-[4px] flex-1 overflow-hidden rounded-full bg-white/10">

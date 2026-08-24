@@ -1,5 +1,6 @@
 import { Toaster } from "sonner";
 
+import { NextLaunches } from "@/components/launches/next-launches";
 import { CTA } from "@/components/pulsar/cta";
 import { Fleet } from "@/components/pulsar/fleet";
 import { Footer } from "@/components/pulsar/footer";
@@ -18,6 +19,7 @@ export default function Home() {
     <div className="min-h-screen w-full bg-space-950 text-foreground">
       <StartAtTop />
       <Navbar />
+      <NextLaunches />
       <main>
         <Hero />
         <Problem />

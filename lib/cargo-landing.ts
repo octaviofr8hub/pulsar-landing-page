@@ -288,10 +288,10 @@ function integrate(
   // El motor no arranca de golpe: el gas sube y baja con su propia constante, y
   // el control de vuelo lo recorta solo si el cohete empieza a subir.
   const climbing = Math.max(0, state.vy - CLIMB_LIMIT_MS) / CLIMB_FADE_MS;
-  const wanted =
-    command.burn && state.fuel > 0 ? Math.max(0, 1 - climbing) : 0;
+  const wanted = command.burn && state.fuel > 0 ? Math.max(0, 1 - climbing) : 0;
   const throttle =
-    state.throttle + (wanted - state.throttle) * Math.min(1, step * THROTTLE_RESPONSE);
+    state.throttle +
+    (wanted - state.throttle) * Math.min(1, step * THROTTLE_RESPONSE);
   const fuel = Math.max(0, state.fuel - throttle * step);
   const accel = throttle * THRUST_MS2;
 
@@ -304,9 +304,11 @@ function integrate(
     clamp((want - tilt) * ATTITUDE_GAIN - rate * ATTITUDE_DAMPING, authority);
 
   const rateX =
-    state.rateX + torque(cx * COMMAND_TILT_RAD, state.tiltX, state.rateX) * step;
+    state.rateX +
+    torque(cx * COMMAND_TILT_RAD, state.tiltX, state.rateX) * step;
   const rateZ =
-    state.rateZ + torque(cz * COMMAND_TILT_RAD, state.tiltZ, state.rateZ) * step;
+    state.rateZ +
+    torque(cz * COMMAND_TILT_RAD, state.tiltZ, state.rateZ) * step;
   const tiltX = state.tiltX + rateX * step;
   const tiltZ = state.tiltZ + rateZ * step;
   const tilt = Math.hypot(tiltX, tiltZ);
@@ -400,7 +402,10 @@ export function autopilotCommand(state: LandingState): LandingCommand {
   const decel = THRUST_MS2 - GRAVITY_MS2;
   const targetRate = -Math.min(
     APPROACH_SPEED_MS,
-    Math.max(2.2, 0.55 * Math.sqrt(2 * decel * Math.max(0, state.altitude - 6))),
+    Math.max(
+      2.2,
+      0.55 * Math.sqrt(2 * decel * Math.max(0, state.altitude - 6)),
+    ),
   );
   const burn = state.vy < targetRate;
 

@@ -28,6 +28,8 @@ import {
   SelectValue,
 } from "./ui/select";
 import { BayGame } from "@/components/cargo/bay-game";
+import { Flag } from "@/components/ui/flag";
+import type { CountryCode } from "@/types/network";
 import { GlobeCanvas, buildSingleRoute } from "@/components/globe/globe-canvas";
 import type { GlobeHub } from "@/components/globe/types";
 import { useLanguage } from "@/components/i18n/use-language";
@@ -42,11 +44,41 @@ import {
   VOLUMETRIC_KG_PER_M3,
 } from "@/lib/logistics";
 
-const PORTS = [
-  { value: "lgb", label: "Long Beach, USA (LGB)", lat: 33.75, lon: -118.19 },
-  { value: "sin", label: "Singapur (SIN)", lat: 1.29, lon: 103.85 },
-  { value: "zlo", label: "Manzanillo (ZLO)", lat: 19.05, lon: -104.31 },
-  { value: "rtm", label: "Róterdam (RTM)", lat: 51.95, lon: 4.14 },
+const PORTS: {
+  value: string;
+  label: string;
+  country: CountryCode;
+  lat: number;
+  lon: number;
+}[] = [
+  {
+    value: "lgb",
+    label: "Long Beach, USA (LGB)",
+    country: "us",
+    lat: 33.75,
+    lon: -118.19,
+  },
+  {
+    value: "sin",
+    label: "Singapur (SIN)",
+    country: "sg",
+    lat: 1.29,
+    lon: 103.85,
+  },
+  {
+    value: "zlo",
+    label: "Manzanillo (ZLO)",
+    country: "mx",
+    lat: 19.05,
+    lon: -104.31,
+  },
+  {
+    value: "rtm",
+    label: "Róterdam (RTM)",
+    country: "nl",
+    lat: 51.95,
+    lon: 4.14,
+  },
 ];
 
 /**
@@ -841,7 +873,10 @@ function RouteSelect({
       <SelectContent>
         {PORTS.filter((p) => p.value !== exclude).map((p) => (
           <SelectItem key={p.value} value={p.value}>
-            {p.label}
+            <span className="flex items-center gap-2">
+              <Flag country={p.country} />
+              {p.label}
+            </span>
           </SelectItem>
         ))}
       </SelectContent>

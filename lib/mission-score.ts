@@ -78,7 +78,8 @@ export interface MissionScore {
 }
 
 function rankOf(total: number): MissionRank {
-  return (RANKS.find(([, floor]) => total >= floor) ?? RANKS[RANKS.length - 1])[0];
+  return (RANKS.find(([, floor]) => total >= floor) ??
+    RANKS[RANKS.length - 1])[0];
 }
 
 /**

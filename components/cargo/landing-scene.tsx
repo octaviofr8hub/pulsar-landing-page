@@ -1,6 +1,11 @@
 "use client";
 
-import { Instance, Instances, PerspectiveCamera, Stars } from "@react-three/drei";
+import {
+  Instance,
+  Instances,
+  PerspectiveCamera,
+  Stars,
+} from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef, type RefObject } from "react";
 import {
@@ -186,7 +191,12 @@ function Beacon({ position }: { position: [number, number, number] }) {
   return (
     <mesh ref={meshRef} position={position}>
       <sphereGeometry args={[0.12, 10, 8]} />
-      <meshBasicMaterial color="#f8fafc" transparent opacity={0.9} fog={false} />
+      <meshBasicMaterial
+        color="#f8fafc"
+        transparent
+        opacity={0.9}
+        fog={false}
+      />
     </mesh>
   );
 }
@@ -215,7 +225,11 @@ function Droneship() {
       {/* casco */}
       <mesh position={[0, -0.7, 0]}>
         <boxGeometry args={[DECK_X * 2, 1.4, DECK_Z * 2]} />
-        <meshStandardMaterial color="#141c2e" roughness={0.85} metalness={0.25} />
+        <meshStandardMaterial
+          color="#141c2e"
+          roughness={0.85}
+          metalness={0.25}
+        />
       </mesh>
 
       {/* cubierta */}
@@ -299,12 +313,36 @@ const CRANES = [-44, -19, 5, 28] as const;
  * la cofia.
  */
 const STACKS: readonly (readonly [number, number, number])[] = [
-  [-50, -8, 3], [-45, -8, 4], [-40, -8, 2], [-35, -8, 4], [-30, -8, 3],
-  [-25, -8, 5], [-20, -8, 3], [-15, -8, 4], [-10, -8, 2], [-5, -8, 3],
-  [0, -8, 4], [5, -8, 3], [10, -8, 2], [15, -8, 4], [20, -8, 3],
-  [-48, -13, 4], [-43, -13, 2], [-38, -13, 5], [-33, -13, 3], [-28, -13, 4],
-  [-23, -13, 2], [-18, -13, 4], [-13, -13, 3], [-8, -13, 5], [-3, -13, 3],
-  [2, -13, 2], [7, -13, 4], [12, -13, 3], [17, -13, 4], [22, -13, 2],
+  [-50, -8, 3],
+  [-45, -8, 4],
+  [-40, -8, 2],
+  [-35, -8, 4],
+  [-30, -8, 3],
+  [-25, -8, 5],
+  [-20, -8, 3],
+  [-15, -8, 4],
+  [-10, -8, 2],
+  [-5, -8, 3],
+  [0, -8, 4],
+  [5, -8, 3],
+  [10, -8, 2],
+  [15, -8, 4],
+  [20, -8, 3],
+  [-48, -13, 4],
+  [-43, -13, 2],
+  [-38, -13, 5],
+  [-33, -13, 3],
+  [-28, -13, 4],
+  [-23, -13, 2],
+  [-18, -13, 4],
+  [-13, -13, 3],
+  [-8, -13, 5],
+  [-3, -13, 3],
+  [2, -13, 2],
+  [7, -13, 4],
+  [12, -13, 3],
+  [17, -13, 4],
+  [22, -13, 2],
 ];
 
 /**
@@ -336,11 +374,19 @@ function GantryCrane({ x }: { x: number }) {
       {/* viga superior y pluma: la pluma vuela sobre el agua, hacia la cámara */}
       <mesh position={[0, h + 0.4, 0]}>
         <boxGeometry args={[5.6, 0.8, 1.1]} />
-        <meshStandardMaterial color="#2e3e5c" roughness={0.75} metalness={0.35} />
+        <meshStandardMaterial
+          color="#2e3e5c"
+          roughness={0.75}
+          metalness={0.35}
+        />
       </mesh>
       <mesh position={[0, h + 0.9, 6]}>
         <boxGeometry args={[1, 0.55, 22]} />
-        <meshStandardMaterial color="#33456a" roughness={0.75} metalness={0.35} />
+        <meshStandardMaterial
+          color="#33456a"
+          roughness={0.75}
+          metalness={0.35}
+        />
       </mesh>
       <mesh position={[0, h + 1.9, 1.6]}>
         <boxGeometry args={[1.5, 1.4, 1.6]} />
@@ -367,7 +413,11 @@ function Port() {
       {/* muelle */}
       <mesh position={[-14, 0.7, -10]}>
         <boxGeometry args={[126, 1.4, 30]} />
-        <meshStandardMaterial color="#101a2b" roughness={0.9} metalness={0.15} />
+        <meshStandardMaterial
+          color="#101a2b"
+          roughness={0.9}
+          metalness={0.15}
+        />
       </mesh>
       {/* canto iluminado del muelle */}
       <mesh position={[-14, 1.45, 4.9]}>
@@ -402,7 +452,9 @@ function Port() {
               // Módulo con valor absoluto: las coordenadas son negativas y un
               // índice negativo dejaba el contenedor sin color, es decir blanco.
               color={
-                CONTAINER_TONES[Math.abs(x + z + level) % CONTAINER_TONES.length]
+                CONTAINER_TONES[
+                  Math.abs(x + z + level) % CONTAINER_TONES.length
+                ]
               }
             />
           )),
@@ -580,7 +632,11 @@ function TouchdownFx({
 
   return (
     <>
-      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]}>
+      <mesh
+        ref={ringRef}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.06, 0]}
+      >
         <ringGeometry args={[0.4, 0.62, 40]} />
         <meshBasicMaterial
           color="#cbd5f5"
@@ -672,7 +728,10 @@ export function LandingScene({
         // Un fallo no se queda quieto en el aire: se tumba y desaparece en la
         // deflagración.
         rocket.rotation.z -= fxRef.current * 1.6;
-        rocket.position.y = Math.max(0.4, rocket.position.y - fxRef.current * 3);
+        rocket.position.y = Math.max(
+          0.4,
+          rocket.position.y - fxRef.current * 3,
+        );
         rocket.visible = fxRef.current < 0.35;
       }
     }
@@ -695,11 +754,7 @@ export function LandingScene({
           ? Math.sin(fxRef.current * 60) * 0.35 * Math.max(0, 1 - fxRef.current)
           : 0;
 
-      chase.set(
-        x * 0.45 + shake,
-        aimY + distance * 0.22,
-        z * 0.45 + distance,
-      );
+      chase.set(x * 0.45 + shake, aimY + distance * 0.22, z * 0.45 + distance);
       camera.position.lerp(chase, Math.min(1, delta * 4));
       camera.lookAt(x * 0.3, aimY, z * 0.3);
     }
@@ -727,7 +782,11 @@ export function LandingScene({
       });
     }
 
-    if (state.result && !finished.current && fxRef.current >= LANDING_FX_SECONDS) {
+    if (
+      state.result &&
+      !finished.current &&
+      fxRef.current >= LANDING_FX_SECONDS
+    ) {
       finished.current = true;
       onDone(state.result);
     }
@@ -757,7 +816,11 @@ export function LandingScene({
       />
 
       <ambientLight intensity={0.5} />
-      <directionalLight position={[-40, 30, 20]} intensity={2.2} color="#cfe3ff" />
+      <directionalLight
+        position={[-40, 30, 20]}
+        intensity={2.2}
+        color="#cfe3ff"
+      />
       <pointLight
         position={[0, 6, 0]}
         intensity={120}

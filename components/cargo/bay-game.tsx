@@ -118,8 +118,12 @@ const COPY = {
     launch: "Despegar",
     launching: "Encendido…",
     launched: "Misión completada",
-    launchedSub: (m3: string, decks: number, guidance: number, landing: string) =>
-      `${m3} m³ · ${decks} cubiertas · guiado ${guidance}% · ${landing}`,
+    launchedSub: (
+      m3: string,
+      decks: number,
+      guidance: number,
+      landing: string,
+    ) => `${m3} m³ · ${decks} cubiertas · guiado ${guidance}% · ${landing}`,
     again: "Cargar otra cofia",
     altitude: "Altitud",
     speed: "Velocidad",
@@ -213,8 +217,12 @@ const COPY = {
     launch: "Launch",
     launching: "Ignition…",
     launched: "Mission complete",
-    launchedSub: (m3: string, decks: number, guidance: number, landing: string) =>
-      `${m3} m³ · ${decks} decks · ${guidance}% guidance · ${landing}`,
+    launchedSub: (
+      m3: string,
+      decks: number,
+      guidance: number,
+      landing: string,
+    ) => `${m3} m³ · ${decks} decks · ${guidance}% guidance · ${landing}`,
     again: "Load another fairing",
     altitude: "Altitude",
     speed: "Speed",
@@ -504,6 +512,11 @@ export function BayGame({
   const rootRef = useRef<HTMLDivElement>(null);
   /** El tablero: se le devuelve el foco al ampliar para no perder el teclado. */
   const stageRef = useRef<HTMLDivElement>(null);
+  /** Manejadores de teclado vivos, para el respaldo que escucha en la ventana. */
+  const keyboardRef = useRef<{
+    pressKey: (key: string) => boolean;
+    releaseKey: (key: string) => void;
+  } | null>(null);
 
   // Baraja ya en el cliente: ver `initialState`.
   useEffect(() => dispatch({ type: "shuffle" }), []);
@@ -658,6 +671,8 @@ export function BayGame({
 
   const hasCargo = metrics.stowedM3 > 0;
   const flying = phase === "ascent";
+  const landingPhase = phase === "landing";
+  const inFlight = flying || landingPhase;
   /** Pilotando el descenso: el puntero es el mando y el clic, el gas. */
   const piloting = phase === "landing" && approaching;
 
@@ -760,20 +775,23 @@ export function BayGame({
     };
   };
 
-  const handleKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+  /**
+   * Núcleo del teclado, separado del evento de React: lo usan el tablero (que
+   * lo recibe por el foco) y el respaldo de ventana. Devuelve `true` si la
+   * tecla era del juego, para que quien la reciba se la trague.
+   */
+  const pressKey = (key: string): boolean => {
     // A entrega el mando al piloto automático mientras se pilota el descenso.
-    if ((event.key === "a" || event.key === "A") && piloting) {
-      event.preventDefault();
+    if ((key === "a" || key === "A") && piloting) {
       setAssist(true);
-      return;
+      return true;
     }
 
     // F amplía y reduce en cualquier fase: es un mando de la vista, no del juego.
-    if (event.key === "f" || event.key === "F") {
-      event.preventDefault();
+    if (key === "f" || key === "F") {
       if (expanded) collapse();
       else expand();
-      return;
+      return true;
     }
 
     const keys = [
@@ -785,57 +803,115 @@ export function BayGame({
       "r",
       "R",
     ];
-    if (!keys.includes(event.key)) return;
-    if (phase !== "stow" && !flying && !piloting) return;
-    event.preventDefault();
+    if (!keys.includes(key)) return false;
+    if (phase !== "stow" && !flying && !piloting) return false;
 
     // Pilotando el descenso, la tecla se queda pulsada: el mando y el gas se
-    // sostienen mientras no se suelte (`handleKeyUp`).
+    // sostienen mientras no se suelte (`releaseKey`).
     if (piloting) {
-      keysRef.current.add(event.key);
+      keysRef.current.add(key);
       syncCommand();
-      return;
+      return true;
     }
 
     if (flying) {
-      switch (event.key) {
+      switch (key) {
         case "ArrowLeft":
-          return steer(-0.7, 0);
+          steer(-0.7, 0);
+          return true;
         case "ArrowRight":
-          return steer(0.7, 0);
+          steer(0.7, 0);
+          return true;
         case "ArrowUp":
-          return steer(0, -0.7);
+          steer(0, -0.7);
+          return true;
         case "ArrowDown":
-          return steer(0, 0.7);
+          steer(0, 0.7);
+          return true;
         default:
-          return;
+          return true;
       }
     }
 
-    switch (event.key) {
+    switch (key) {
       case "ArrowLeft":
-        return dispatch({ type: "move", dx: -1, dz: 0 });
+        dispatch({ type: "move", dx: -1, dz: 0 });
+        return true;
       case "ArrowRight":
-        return dispatch({ type: "move", dx: 1, dz: 0 });
+        dispatch({ type: "move", dx: 1, dz: 0 });
+        return true;
       case "ArrowUp":
-        return dispatch({ type: "move", dx: 0, dz: -1 });
+        dispatch({ type: "move", dx: 0, dz: -1 });
+        return true;
       case "ArrowDown":
-        return dispatch({ type: "move", dx: 0, dz: 1 });
+        dispatch({ type: "move", dx: 0, dz: 1 });
+        return true;
       case "r":
       case "R":
-        return dispatch({ type: "rotate" });
+        dispatch({ type: "rotate" });
+        return true;
       default:
-        return dispatch({ type: "drop" });
+        dispatch({ type: "drop" });
+        return true;
     }
   };
 
-  const handleKeyUp = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (!keysRef.current.delete(event.key)) return;
+  const releaseKey = (key: string) => {
+    if (!keysRef.current.delete(key)) return;
     syncCommand();
   };
 
-  const landingPhase = phase === "landing";
-  const inFlight = flying || landingPhase;
+  const handleKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (pressKey(event.key)) event.preventDefault();
+  };
+
+  const handleKeyUp = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    releaseKey(event.key);
+  };
+
+  // El respaldo de ventana tiene que ver siempre la fase actual, y el efecto que
+  // lo instala no se rehace en cada render: se guarda la última versión aquí.
+  useEffect(() => {
+    keyboardRef.current = { pressKey, releaseKey };
+  });
+
+  /**
+   * Teclado en vuelo. El tablero tiene `tabIndex`, pero al pulsar "Tomar el
+   * mando" el foco se queda en un botón que desaparece con el cartel: a partir
+   * de ahí ni el espacio ni las flechas llegaban a ninguna parte y había que
+   * hacer clic en la escena para recuperarlos. Así que en cuanto empieza el
+   * vuelo se le devuelve el foco al tablero **y** se escucha en la ventana por
+   * si se ha vuelto a perder.
+   *
+   * El respaldo sólo atiende teclas que salen del propio juego o del `body`:
+   * nunca las de los controles del cotizador, que también usan flechas.
+   */
+  useEffect(() => {
+    if (!inFlight) return;
+    stageRef.current?.focus({ preventScroll: true });
+
+    const owns = (target: EventTarget | null) =>
+      target === document.body ||
+      (target instanceof Node && rootRef.current?.contains(target) === true);
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      // El tablero enfocado ya lo maneja React; no hay que hacerlo dos veces.
+      if (event.target === stageRef.current || !owns(event.target)) return;
+      if (keyboardRef.current?.pressKey(event.key)) event.preventDefault();
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.target === stageRef.current || !owns(event.target)) return;
+      keyboardRef.current?.releaseKey(event.key);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, [inFlight, approaching]);
+
   /** Ampliado hay sitio para instrumentos grandes; encajado, no. */
   const board: BoardSize = expanded ? "lg" : "sm";
 
@@ -874,9 +950,7 @@ export function BayGame({
           ref={stageRef}
           role="application"
           tabIndex={0}
-          aria-label={
-            piloting ? c.landingHint : flying ? c.steerHint : c.hint
-          }
+          aria-label={piloting ? c.landingHint : flying ? c.steerHint : c.hint}
           onKeyDown={handleKey}
           onKeyUp={handleKeyUp}
           onPointerDown={handlePointerDown}
@@ -1027,7 +1101,9 @@ export function BayGame({
               </div>
               {/* Placa de límites: contra esto se juzga la toma. */}
               <div className="text-right font-mono text-[9px] leading-relaxed text-space-400">
-                <div className="tracking-[0.18em]">{c.limits.toUpperCase()}</div>
+                <div className="tracking-[0.18em]">
+                  {c.limits.toUpperCase()}
+                </div>
                 <div className="text-space-300">
                   ≤ {MAX_TOUCHDOWN_MS} m/s · ≤ {Math.round(MAX_TILT_DEG)}° · ⌀{" "}
                   {PAD_RADIUS_M} m
@@ -1049,8 +1125,9 @@ export function BayGame({
           ) : (
             <>
               <Readout
-                label={c.stowed}
-                value={`${metrics.stowedM3.toFixed(1)} m³`}
+                label={c.used}
+                value={`${Math.round(metrics.use * 100)}%`}
+                tone={metrics.grade === "airy" ? "warn" : "plain"}
               />
               <div className="text-right">
                 <div className="font-mono text-[9px] tracking-[0.18em] text-muted-foreground">
@@ -1195,20 +1272,30 @@ export function BayGame({
   );
 }
 
-/** Tamaño del tablero: encajado en el cotizador o ampliado a pantalla. */
-type BoardSize = "sm" | "lg";
+/**
+ * Tamaño de cada instrumento. `sm`/`lg` son los del tablero según esté el panel
+ * encajado o ampliado; `md`/`xl` los usa el reloj de aprovechamiento, que manda
+ * sobre el resto de su tablero — es el dato del que va la sección.
+ */
+type BoardSize = "sm" | "md" | "lg" | "xl";
 
 const INSTRUMENT_BOX: Record<BoardSize, string> = {
   sm: "h-[46px] w-[46px]",
+  md: "h-[62px] w-[62px]",
   lg: "h-[76px] w-[76px]",
+  xl: "h-[104px] w-[104px]",
 };
 const INSTRUMENT_VALUE: Record<BoardSize, string> = {
   sm: "text-[11px]",
+  md: "text-[16px]",
   lg: "text-[18px]",
+  xl: "text-[26px]",
 };
 const INSTRUMENT_UNIT: Record<BoardSize, string> = {
   sm: "text-[7px]",
+  md: "text-[8px]",
   lg: "text-[9px]",
+  xl: "text-[11px]",
 };
 const INSTRUMENT_LABEL =
   "font-mono text-[8px] tracking-[0.14em] text-space-400";
@@ -1245,6 +1332,7 @@ function Dial({
   unit,
   band,
   warn = false,
+  accent = false,
   size,
 }: {
   label: string;
@@ -1254,6 +1342,8 @@ function Dial({
   /** Tramo correcto de la escala, en fracciones del recorrido. */
   band?: readonly [number, number];
   warn?: boolean;
+  /** Instrumento principal de su tablero: la etiqueta va en color de marca. */
+  accent?: boolean;
   size: BoardSize;
 }) {
   const fraction = clamp01(value);
@@ -1333,7 +1423,15 @@ function Dial({
           )}
         </div>
       </div>
-      <span className={INSTRUMENT_LABEL}>{label.toUpperCase()}</span>
+      <span
+        className={
+          accent
+            ? "font-mono text-[10px] tracking-[0.16em] text-pulse-cyan"
+            : INSTRUMENT_LABEL
+        }
+      >
+        {label.toUpperCase()}
+      </span>
     </div>
   );
 }
@@ -1568,7 +1666,8 @@ function StowBoard({
         unit="%"
         band={[0.72, 1]}
         warn={stats.grade === "airy"}
-        size={size}
+        accent
+        size={size === "lg" ? "xl" : "md"}
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap gap-x-3 font-mono text-[10px] text-muted-foreground">
@@ -1583,7 +1682,9 @@ function StowBoard({
           </span>
           <span className="whitespace-nowrap">
             {c.holes}{" "}
-            <span className={stats.holes > 0 ? "text-amber-300" : "text-foreground"}>
+            <span
+              className={stats.holes > 0 ? "text-amber-300" : "text-foreground"}
+            >
               {stats.holesM3.toFixed(1)} m³
             </span>
           </span>
@@ -1701,70 +1802,68 @@ function Overlay({
   return (
     <div className="absolute inset-0 overflow-y-auto bg-space-950/85 backdrop-blur-sm">
       <div className="flex min-h-full flex-col items-center justify-center gap-1.5 px-5 py-4 text-center">
-      <span className={`font-display text-[18px] ${titleTone}`}>{title}</span>
-      <span className="max-w-[46ch] text-[12px] leading-relaxed text-muted-foreground">
-        {sub}
-      </span>
-      {note && (
-        <span className="max-w-[46ch] font-mono text-[10px] leading-relaxed text-space-500">
-          {note}
+        <span className={`font-display text-[18px] ${titleTone}`}>{title}</span>
+        <span className="max-w-[46ch] text-[12px] leading-relaxed text-muted-foreground">
+          {sub}
         </span>
-      )}
-      {hints && (
-        <div className="mt-2 grid gap-1">
-          {hints.map((hint) => (
-            <div
-              key={hint.action}
-              className="flex items-center justify-center gap-2"
-            >
-              <span className="flex shrink-0 gap-1">
-                {hint.keys.map((key) => (
-                  <kbd
-                    key={key}
-                    className="rounded border border-space-700 bg-space-900 px-1.5 py-0.5 font-mono text-[10px] leading-none text-space-300"
-                  >
-                    {key}
-                  </kbd>
-                ))}
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                {hint.action}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      {panel}
-      <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onAction();
-          }}
-          className="rounded-full bg-pulse-blue px-4 py-1.5 text-[12px] text-white transition-colors hover:bg-pulse-blue/90"
-        >
-          {action}
-        </button>
-        {secondary && onSecondary && (
+        {note && (
+          <span className="max-w-[46ch] font-mono text-[10px] leading-relaxed text-space-500">
+            {note}
+          </span>
+        )}
+        {hints && (
+          <div className="mt-2 grid gap-1">
+            {hints.map((hint) => (
+              <div
+                key={hint.action}
+                className="flex items-center justify-center gap-2"
+              >
+                <span className="flex shrink-0 gap-1">
+                  {hint.keys.map((key) => (
+                    <kbd
+                      key={key}
+                      className="rounded border border-space-700 bg-space-900 px-1.5 py-0.5 font-mono text-[10px] leading-none text-space-300"
+                    >
+                      {key}
+                    </kbd>
+                  ))}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {hint.action}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {panel}
+        <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              onSecondary();
+              onAction();
             }}
-            className="rounded-full border border-border px-4 py-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-full bg-pulse-blue px-4 py-1.5 text-[12px] text-white transition-colors hover:bg-pulse-blue/90"
           >
-            {secondary}
+            {action}
           </button>
-        )}
+          {secondary && onSecondary && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSecondary();
+              }}
+              className="rounded-full border border-border px-4 py-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {secondary}
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
-
 
 /**
  * Marcador de la misión: el total, el rango y de dónde salen los puntos. El

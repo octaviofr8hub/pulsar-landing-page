@@ -31,3 +31,6 @@ export interface OrbitalRoute {
   /** Tiempo estimado de llegada en minutos, al cargar la página */
   etaMinutes: number;
 }
+
+/** Países con puerto en la red: la clave de su bandera. */
+export type CountryCode = "mx" | "us" | "nl" | "sg" | "jp" | "cn" | "de";

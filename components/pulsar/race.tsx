@@ -32,6 +32,7 @@ import {
   SHIP_MODEL,
   shipEstimate,
 } from "@/lib/logistics";
+import { Flag as CountryFlag } from "@/components/ui/flag";
 import { findPort, PORTS } from "./ports";
 import {
   Select,
@@ -517,7 +518,10 @@ function PortSelect({
       <SelectContent>
         {PORTS.filter((p) => p.id !== exclude).map((p) => (
           <SelectItem key={p.id} value={p.id}>
-            {p.name[lang]}
+            <span className="flex items-center gap-2">
+              <CountryFlag country={p.country} />
+              {p.name[lang]}
+            </span>
           </SelectItem>
         ))}
       </SelectContent>

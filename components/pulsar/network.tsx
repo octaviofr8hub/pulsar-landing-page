@@ -23,12 +23,16 @@ import { Button } from "./ui/button";
 import { GlobeCanvas, buildSingleRoute } from "@/components/globe/globe-canvas";
 import type { GlobeHub } from "@/components/globe/types";
 import { useLanguage } from "@/components/i18n/use-language";
+import { Flag } from "@/components/ui/flag";
+import type { CountryCode } from "@/types/network";
 
 type CorridorKey = "pacific" | "atlantic" | "indian";
 
 const NODES: {
   id: string;
   name: string;
+  /** País del nodo: de aquí sale su bandera. */
+  country: CountryCode;
   lat: number;
   lon: number;
   nearshore?: boolean;
@@ -37,6 +41,7 @@ const NODES: {
   {
     id: "manzanillo",
     name: "Manzanillo",
+    country: "mx",
     lat: 19.05,
     lon: -104.31,
     nearshore: true,
@@ -45,6 +50,7 @@ const NODES: {
   {
     id: "long-beach",
     name: "Long Beach",
+    country: "us",
     lat: 33.75,
     lon: -118.19,
     corridor: "pacific",
@@ -52,6 +58,7 @@ const NODES: {
   {
     id: "roterdam",
     name: "Róterdam",
+    country: "nl",
     lat: 51.95,
     lon: 4.14,
     corridor: "atlantic",
@@ -59,6 +66,7 @@ const NODES: {
   {
     id: "singapur",
     name: "Singapur",
+    country: "sg",
     lat: 1.29,
     lon: 103.85,
     corridor: "indian",
@@ -66,6 +74,7 @@ const NODES: {
   {
     id: "veracruz",
     name: "Veracruz",
+    country: "mx",
     lat: 19.17,
     lon: -96.13,
     nearshore: true,
@@ -313,13 +322,14 @@ export function Network() {
               {c.corridors[node.corridor]}
             </div>
             <div
-              className="text-foreground"
+              className="flex items-center gap-2.5 text-foreground"
               style={{
                 fontFamily: "var(--font-display)",
                 fontSize: "1.5rem",
                 fontWeight: 600,
               }}
             >
+              <Flag country={node.country} className="h-[15px] w-[23px]" />
               {node.name}
             </div>
             <div className="mt-1 flex items-center gap-1.5 text-[13px] text-emerald-400">
@@ -394,7 +404,8 @@ export function Network() {
                       className={`h-4 w-4 shrink-0 ${n.nearshore ? "text-pulse-cyan" : "text-pulse-blue"}`}
                     />
                     <div className="min-w-0">
-                      <div className="text-[13px] text-foreground">
+                      <div className="flex items-center gap-2 text-[13px] text-foreground">
+                        <Flag country={n.country} />
                         {n.name}
                       </div>
                       <div className="text-[11px] text-muted-foreground">

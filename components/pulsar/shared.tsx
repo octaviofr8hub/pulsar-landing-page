@@ -36,7 +36,7 @@ export function Section({
       // cn() y no plantilla: así una sección puede ajustar su propio ritmo
       // vertical (`py-*`) sin pelearse con el valor por defecto.
       className={cn(
-        "relative mx-auto w-full max-w-[1600px] px-6 py-24 md:px-10 md:py-32 lg:px-14",
+        "relative mx-auto w-full max-w-[1600px] px-6 py-16 md:px-10 md:py-32 lg:px-14",
         className,
       )}
     >

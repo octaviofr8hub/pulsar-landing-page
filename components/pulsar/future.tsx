@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Globe2, Orbit, CalendarClock, type LucideIcon } from "lucide-react";
 import { Section, Reveal, Eyebrow } from "./shared";
@@ -9,6 +9,7 @@ import { Slider } from "./ui/slider";
 import { OrbitDiorama } from "@/components/globe/orbit-diorama";
 import { GlobeHint } from "@/components/globe/globe-hint";
 import { useLanguage } from "@/components/i18n/use-language";
+import { useIsMobile } from "@/components/viewport/use-is-mobile";
 
 const YEARS = [2026, 2030, 2032, 2035, 2040];
 const WINDOWS = [2026, 2028.2, 2030.3, 2032.5, 2034.6, 2036.8, 2039];
@@ -30,6 +31,8 @@ const COPY = {
       cislunar: "Rutas cislunares",
       mars: "Marte · cada 26 meses",
     },
+    /** Marte queda al borde del encuadre estrecho: allí sólo cabe el nombre. */
+    marsLabelShort: "Marte",
   },
   en: {
     eyebrow: "Tomorrow",
@@ -47,17 +50,26 @@ const COPY = {
       cislunar: "Cislunar routes",
       mars: "Mars · every 26 months",
     },
+    marsLabelShort: "Mars",
   },
 } as const;
 
 export function Future() {
   const { lang } = useLanguage();
   const c = COPY[lang];
+  const isMobile = useIsMobile();
   const [year, setYear] = useState(2026);
   // expansion: 0 at 2026 -> 1 at 2040
   const t = (year - 2026) / 14;
   const marsWindow = WINDOWS.reduce((a, b) =>
     Math.abs(b - year) < Math.abs(a - year) ? b : a,
+  );
+  // Las etiquetas viven dentro de la escena 3D: su ancho no se puede acotar con
+  // clases, y en el encuadre de móvil la de Marte (la del cuerpo más lejano)
+  // no cabría entera. Ahí se usa la versión corta.
+  const labels = useMemo(
+    () => ({ ...c.labels, mars: isMobile ? c.marsLabelShort : c.labels.mars }),
+    [c, isMobile],
   );
 
   return (
@@ -118,8 +130,12 @@ export function Future() {
 
         <Reveal delay={0.1} direction="left" distance={44} scaleFrom={0.97}>
           <div className="rounded-2xl border border-border bg-space-950/70 p-4">
-            <div className="relative h-[360px] overflow-hidden rounded-xl bg-[radial-gradient(circle_at_35%_45%,rgba(59,130,246,0.10),transparent_65%)] sm:h-[420px]">
-              <OrbitDiorama progress={t} labels={c.labels} />
+            {/* El diorama es horizontal (Tierra → Luna → Marte): el alto de la
+                caja fija el zoom, así que en pantallas estrechas va en banda
+                apaisada para que entren el planeta y las rutas. De `md` para
+                arriba, el alto de siempre. */}
+            <div className="relative h-[180px] overflow-hidden rounded-xl bg-[radial-gradient(circle_at_35%_45%,rgba(59,130,246,0.10),transparent_65%)] sm:h-[280px] md:h-[420px]">
+              <OrbitDiorama progress={t} labels={labels} />
               <GlobeHint label={c.hint} />
               <motion.div
                 className="pointer-events-none absolute right-4 top-4 rounded-full bg-[#e0714a]/20 px-2.5 py-1 text-[12px] text-[#f0a184]"

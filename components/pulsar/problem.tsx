@@ -206,10 +206,9 @@ export function Problem() {
         <Reveal blur>
           <Eyebrow>{c.eyebrow}</Eyebrow>
           <h2
-            className="mt-5 text-foreground"
+            className="mt-5 text-[1.75rem] text-foreground md:text-[clamp(2rem,3.5vw,3rem)]"
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "clamp(2rem,3.5vw,3rem)",
               lineHeight: 1.08,
               fontWeight: 600,
             }}
@@ -228,7 +227,7 @@ export function Problem() {
               </span>
             ))}
           </h2>
-          <p className="mt-5 text-[16px] text-muted-foreground">
+          <p className="mt-5 text-[15px] text-muted-foreground md:text-[16px]">
             {c.para1}
             <span className="text-foreground">{c.para2}</span>
           </p>
@@ -241,7 +240,10 @@ export function Problem() {
         </Reveal>
 
         <Reveal delay={0.1} direction="left" distance={44} scaleFrom={0.97}>
-          <div className="relative overflow-hidden rounded-2xl border border-border bg-space-900/60 p-4 backdrop-blur">
+          {/* El mapa vive de `hover` y de un lienzo ancho: a 342 px los
+              continentes y las cifras son ilegibles y los focos no se pueden
+              abrir con el dedo. Por debajo de `md` se cuenta en texto. */}
+          <div className="relative hidden overflow-hidden rounded-2xl border border-border bg-space-900/60 p-4 backdrop-blur md:block">
             <svg viewBox="0 0 1000 500" className="w-full">
               <defs>
                 <radialGradient id="pulsar-trail">
@@ -404,6 +406,43 @@ export function Problem() {
             <p className="mt-3 font-mono text-[11px] text-space-500">
               {c.scaleNote}
             </p>
+          </div>
+
+          {/* Los mismos cuatro cuellos de botella del mapa, accesibles sin
+              hover: microetiqueta mono, numeración y reglas hairline — sin
+              cajas que rodeen cada dato. */}
+          <div className="md:hidden">
+            <p className="font-mono text-[11px] tracking-[0.18em] text-space-500">
+              {c.legend.choke.toUpperCase()}
+            </p>
+            <ul className="mt-3">
+              {c.chokes.map((choke, i) => (
+                <li
+                  key={choke.name}
+                  className="grid grid-cols-[2.25rem_1fr] border-t border-space-800 py-4"
+                >
+                  <span className="font-mono text-[11px] leading-6 text-space-500">
+                    /{String(i + 1).padStart(2, "0")}
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-[16px] leading-6 text-foreground">
+                      {choke.name}
+                    </h3>
+                    <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
+                      {choke.detail}
+                    </p>
+                    <p className="mt-2 flex items-baseline justify-between gap-3">
+                      <span className="font-mono text-[11px] tracking-wide text-space-500">
+                        {c.costLabel}
+                      </span>
+                      <span className="text-[13px] text-danger">
+                        {choke.cost}
+                      </span>
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </Reveal>
       </div>

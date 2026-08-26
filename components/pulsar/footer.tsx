@@ -57,11 +57,13 @@ export function Footer() {
   return (
     <footer className="border-t border-border bg-space-950">
       <div className="mx-auto max-w-[1600px] px-6 py-16 md:px-10 lg:px-14">
+        {/* En móvil las cuatro columnas de enlaces van a dos, con el bloque de
+            marca a todo el ancho: apiladas, el pie medía más que una sección. */}
         <Stagger
-          className="grid gap-10 md:grid-cols-[1.5fr_repeat(4,1fr)]"
+          className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-[1.5fr_repeat(4,1fr)] md:gap-x-10"
           gap={0.07}
         >
-          <StaggerItem distance={16}>
+          <StaggerItem distance={16} className="col-span-2 md:col-span-1">
             <PulsarLogo size="sm" />
             <p className="mt-4 max-w-xs text-[14px] text-muted-foreground">
               {c.desc}

@@ -11,7 +11,6 @@ import {
   Boxes,
   Clock,
   Layers,
-  Mouse,
   Network as NetworkIcon,
   Plus,
   ShieldCheck,
@@ -212,8 +211,10 @@ export function Network() {
       id="red"
       className="relative overflow-hidden border-t border-border"
     >
-      {/* globo de fondo, grande y centrado — interactivo */}
-      <div className="absolute inset-0">
+      {/* En móvil el globo es una banda acotada al principio de la sección (el
+          texto va debajo, sobre el fondo sólido); de `md` para arriba vuelve a
+          ser el fondo a sangre con el contenido flotando encima. */}
+      <div className="relative h-[320px] w-full md:absolute md:inset-0 md:h-auto md:w-auto">
         <GlobeCanvas
           interactive
           textured
@@ -229,14 +230,17 @@ export function Network() {
           maxDistance={10}
           showZoomButtons
           showHint
+          hintLabel={c.dragHint}
         />
       </div>
-      {/* scrims: oscurecen los bordes (texto/paneles), dejan ver el globo al centro */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-space-950 via-transparent to-space-950" />
-      <div className="pointer-events-none absolute inset-0 bg-space-950/45 lg:bg-transparent" />
+      {/* scrims: oscurecen los bordes (texto/paneles), dejan ver el globo al
+          centro. Sólo tienen sentido con el globo de fondo: en móvil, con la
+          banda en flujo, oscurecerían el planeta sin motivo. */}
+      <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-r from-space-950 via-transparent to-space-950 md:block" />
+      <div className="pointer-events-none absolute inset-0 hidden bg-space-950/45 md:block lg:bg-transparent" />
 
       {/* contenido flotando sobre el globo */}
-      <div className="pointer-events-none relative mx-auto grid min-h-[720px] max-w-[1600px] gap-8 px-6 py-16 md:px-10 lg:grid-cols-[320px_minmax(0,1fr)_340px] lg:items-start lg:px-14">
+      <div className="pointer-events-none relative mx-auto grid max-w-[1600px] gap-8 px-6 py-16 md:min-h-[720px] md:px-10 lg:grid-cols-[320px_minmax(0,1fr)_340px] lg:items-start lg:px-14">
         {/* columna de texto */}
         <Reveal className="pointer-events-none" direction="right" distance={40}>
           <Eyebrow>{c.eyebrow}</Eyebrow>
@@ -418,11 +422,6 @@ export function Network() {
             </div>
           </div>
         </Reveal>
-      </div>
-
-      {/* hint de interacción */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex items-center justify-center gap-2 text-[12px] text-muted-foreground">
-        <Mouse className="h-4 w-4" /> {c.dragHint}
       </div>
     </section>
   );

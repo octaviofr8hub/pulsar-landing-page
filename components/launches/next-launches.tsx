@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsClient } from "@/components/globe/hooks";
 import { useLanguage } from "@/components/i18n/use-language";
 import { Flag } from "@/components/ui/flag";
+import { useIsMobile } from "@/components/viewport/use-is-mobile";
 import {
   SOLD_OUT_M3,
   formatCountdown,
@@ -54,10 +55,16 @@ const COLLAPSED_KEY = "pulsar-launches-collapsed";
  * El panel va fijo sobre la página y a veces tapa algo. Si alguien lo pliega,
  * se queda plegado el resto de la visita — volver a desplegarse en cada sección
  * sería justo lo que hace odiosos a estos avisos.
+ *
+ * `null` significa «nadie ha decidido todavía»: entonces manda el viewport, que
+ * en móvil arranca plegado porque si no tapa el titular del hero.
  */
-function readCollapsed(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(COLLAPSED_KEY) === "1";
+function readCollapsed(): boolean | null {
+  if (typeof window === "undefined") return null;
+  const stored = window.localStorage.getItem(COLLAPSED_KEY);
+  if (stored === "1") return true;
+  if (stored === "0") return false;
+  return null;
 }
 
 /** Fecha de salida en hora UTC, que es en la que se publican los lanzamientos. */
@@ -87,16 +94,25 @@ export function NextLaunches() {
   const { lang } = useLanguage();
   const c = COPY[lang];
   const mounted = useIsClient();
+  const isMobile = useIsMobile();
   const panelRef = useRef<HTMLElement>(null);
 
   const [now, setNow] = useState(() => Date.now());
   const [index, setIndex] = useState(0);
   const [open, setOpen] = useState(false);
-  /** Plegado: el panel es fijo y a veces tapa lo que hay debajo. */
-  const [collapsed, setCollapsed] = useState(readCollapsed);
+  /**
+   * Plegado: el panel es fijo y a veces tapa lo que hay debajo. El inicializador
+   * lee `localStorage` y en el servidor devuelve `null`, pero da igual: hasta
+   * `mounted` este componente no dibuja nada, así que no hay hidratación que
+   * romper.
+   */
+  const [storedCollapsed, setStoredCollapsed] = useState<boolean | null>(
+    readCollapsed,
+  );
+  const collapsed = storedCollapsed ?? isMobile;
 
   const toggleCollapsed = (value: boolean) => {
-    setCollapsed(value);
+    setStoredCollapsed(value);
     window.localStorage.setItem(COLLAPSED_KEY, value ? "1" : "0");
   };
 
@@ -148,14 +164,15 @@ export function NextLaunches() {
           type="button"
           onClick={() => toggleCollapsed(false)}
           aria-label={c.expand}
-          className="flex items-center gap-2 rounded-full border border-border bg-space-950/85 px-3 py-1.5 backdrop-blur-xl transition-colors hover:border-pulse-blue/60"
+          className="flex items-center gap-1.5 rounded-full border border-border bg-space-950/85 px-2.5 py-1.5 backdrop-blur-xl transition-colors hover:border-pulse-blue/60 md:gap-2 md:px-3"
         >
           <Rocket className="h-3 w-3 shrink-0 text-pulse-cyan" />
           <span className="font-mono text-[11px] text-pulse-cyan">
             T− {formatCountdown(current.departure - now)}
           </span>
           <Flag country={current.route.from.country} />
-          <span className="font-mono text-[10px] text-space-400">
+          {/* Los códigos de puerto sobran en 390 px: la píldora no cabría. */}
+          <span className="hidden font-mono text-[10px] text-space-400 md:inline">
             {current.route.from.code}→{current.route.to.code}
           </span>
           <Flag country={current.route.to.country} />

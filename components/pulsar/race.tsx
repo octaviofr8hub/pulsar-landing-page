@@ -33,6 +33,7 @@ import {
   shipEstimate,
 } from "@/lib/logistics";
 import { Flag as CountryFlag } from "@/components/ui/flag";
+import { useIsMobile } from "@/components/viewport/use-is-mobile";
 import { findPort, PORTS } from "./ports";
 import {
   Select,
@@ -129,6 +130,9 @@ const COPY = {
 export function Race() {
   const { lang } = useLanguage();
   const c = COPY[lang];
+  // Sólo decide si se monta el canvas WebGL del planeta: en un teléfono es
+  // adorno y la página ya acumula varios contextos. La maquetación es `md:`.
+  const isMobile = useIsMobile();
   const [fromId, setFromId] = useState("long-beach");
   const [toId, setToId] = useState("singapur");
   const [runKey, setRunKey] = useState(0);
@@ -193,13 +197,15 @@ export function Race() {
   return (
     <Section id="solucion" className="overflow-hidden border-t border-border">
       {/* z-10: el planeta de fondo sube por detrás de este bloque */}
+      {/* min-w-0 en los hijos: sin él la rejilla se dimensiona por el
+          min-content del panel (los selectores no parten palabras) y en móvil
+          se sale del contenedor, que además recorta por `overflow-hidden`. */}
       <div className="relative z-10 grid gap-12 lg:grid-cols-[minmax(0,440px)_1fr] lg:items-start">
-        <Reveal blur>
+        <Reveal blur className="min-w-0">
           <Eyebrow>{c.eyebrow}</Eyebrow>
           <h2
-            className="mt-5 font-display text-foreground"
+            className="mt-5 font-display text-[1.75rem] text-foreground md:text-[clamp(2rem,3.5vw,3rem)]"
             style={{
-              fontSize: "clamp(2rem,3.5vw,3rem)",
               lineHeight: 1.08,
               fontWeight: 600,
             }}
@@ -208,7 +214,7 @@ export function Race() {
             <br />
             <span className="text-pulse-cyan">{c.h2Accent}</span>
           </h2>
-          <p className="mt-5 text-[16px] text-muted-foreground">
+          <p className="mt-5 text-[15px] text-muted-foreground md:text-[16px]">
             {c.para}
             <span className="text-foreground">{c.paraStrong}</span>
           </p>
@@ -233,13 +239,16 @@ export function Race() {
           </div>
         </Reveal>
 
-        <Reveal delay={0.1} direction="left" distance={44}>
-          <div className="rounded-2xl border border-border bg-space-900/60 p-5 backdrop-blur md:p-6">
+        <Reveal delay={0.1} direction="left" distance={44} className="min-w-0">
+          <div className="rounded-2xl border border-border bg-space-900/60 p-4 backdrop-blur md:p-6">
             <p className="text-center font-mono text-[12px] tracking-wide text-muted-foreground">
               {c.pick}
             </p>
 
-            <div className="mt-4 flex items-center gap-3">
+            {/* Los dos selectores no caben uno al lado del otro en un móvil:
+                se apilan con el botón de intercambio en medio y a partir de
+                `sm` vuelve la fila de siempre. */}
+            <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
               <PortSelect
                 value={fromId}
                 onChange={(v) => {
@@ -254,9 +263,9 @@ export function Race() {
                 onClick={swap}
                 aria-label={c.swap}
                 title={c.swap}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-pulse-blue/60 hover:text-pulse-cyan"
+                className="flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-full border border-border text-muted-foreground transition-colors hover:border-pulse-blue/60 hover:text-pulse-cyan"
               >
-                <ArrowLeftRight className="h-4 w-4" />
+                <ArrowLeftRight className="h-4 w-4 rotate-90 sm:rotate-0" />
               </button>
               <PortSelect
                 value={toId}
@@ -310,56 +319,74 @@ export function Race() {
           del todo, el arco lo cruza nivelado — origen a la izquierda, destino a
           la derecha — y la tira de cifras se apoya encima. El canvas sale a
           sangre del padding de la sección para que la curvatura llegue a los
-          bordes de la ventana. */}
-      <div className="relative -mx-6 mt-6 h-[400px] md:-mx-10 md:mt-8 md:h-[520px] lg:-mx-14 lg:h-[560px] xl:h-[620px]">
-        {/* El canvas arranca muy por encima de la banda: el planeta sube por
-            detrás del panel y es el fondo de la sección, no una franja al pie.
-            La ruta cae entera en la banda despejada. Los 40 px extra por abajo
-            son la holgura que necesita el paralaje para no destapar el borde. */}
-        <Parallax
-          className="absolute inset-x-0 -bottom-10 -top-[185px] md:-top-[240px] lg:-top-[300px] xl:-top-[420px]"
-          distance={34}
-        >
-          <GlobeCanvas
-            mode="orbit"
-            textured
-            autoSpin={false}
-            routes={[model.route]}
-            hubs={hubs}
-            onSelectHub={swap}
-            horizon={horizon}
-            sunDirection={[-0.55, 0.5, -0.85]}
-            detailScale={0.55}
-            cameraDistance={8}
-            dpr={[1, 1.5]}
-            showStars
-          />
-        </Parallax>
+          bordes de la ventana.
+          En móvil no se monta: es un contexto WebGL entero para un fondo, y el
+          mensaje del arco se cuenta en tipografía justo debajo. El `hidden`
+          cubre además el instante previo a hidratar, para que la banda no
+          reserve 400 px de hueco vacío en un teléfono. */}
+      {!isMobile && (
+        <div className="relative -mx-6 mt-6 hidden h-[400px] md:-mx-10 md:mt-8 md:block md:h-[520px] lg:-mx-14 lg:h-[560px] xl:h-[620px]">
+          {/* El canvas arranca muy por encima de la banda: el planeta sube por
+              detrás del panel y es el fondo de la sección, no una franja al
+              pie. La ruta cae entera en la banda despejada. Los 40 px extra por
+              abajo son la holgura que necesita el paralaje para no destapar el
+              borde. */}
+          <Parallax
+            className="absolute inset-x-0 -bottom-10 -top-[185px] md:-top-[240px] lg:-top-[300px] xl:-top-[420px]"
+            distance={34}
+          >
+            <GlobeCanvas
+              mode="orbit"
+              textured
+              autoSpin={false}
+              routes={[model.route]}
+              hubs={hubs}
+              onSelectHub={swap}
+              horizon={horizon}
+              sunDirection={[-0.55, 0.5, -0.85]}
+              detailScale={0.55}
+              cameraDistance={8}
+              dpr={[1, 1.5]}
+              showStars
+            />
+          </Parallax>
 
-        {/* En escritorio, en el cielo por encima del apogeo. En móvil el arco
-            sube casi hasta el borde y no cabe ahí: baja a la cara oscura del
-            planeta, por debajo de la trayectoria. */}
-        <motion.div
-          key={`${fromId}-${toId}`}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="pointer-events-none absolute inset-x-0 top-[46%] z-10 text-center md:top-3"
-        >
-          <div className="font-display text-[15px] text-pulse-cyan md:text-[17px]">
-            {c.arcTitle}
-          </div>
-          <div className="mt-1 text-[12px] text-muted-foreground md:text-[13px]">
-            {c.arcSub}
-          </div>
-        </motion.div>
+          {/* En escritorio, en el cielo por encima del apogeo. En móvil el arco
+              sube casi hasta el borde y no cabe ahí: baja a la cara oscura del
+              planeta, por debajo de la trayectoria. */}
+          <motion.div
+            key={`${fromId}-${toId}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="pointer-events-none absolute inset-x-0 top-[46%] z-10 text-center md:top-3"
+          >
+            <div className="font-display text-[15px] text-pulse-cyan md:text-[17px]">
+              {c.arcTitle}
+            </div>
+            <div className="mt-1 text-[12px] text-muted-foreground md:text-[13px]">
+              {c.arcSub}
+            </div>
+          </motion.div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-gradient-to-t from-space-950 to-transparent" />
-      </div>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-gradient-to-t from-space-950 to-transparent" />
+        </div>
+      )}
+
+      {/* El mismo mensaje que corona el arco, sin planeta detrás: regla
+          hairline y tipografía, nunca una caja. Sólo por debajo de `md`. */}
+      <Reveal className="relative z-10 mt-10 border-t border-space-800 pt-5 md:hidden">
+        <div className="font-display text-[15px] text-pulse-cyan">
+          {c.arcTitle}
+        </div>
+        <div className="mt-1.5 text-[13px] text-muted-foreground">
+          {c.arcSub}
+        </div>
+      </Reveal>
 
       <Reveal className="relative z-10">
         <IconStatStrip
-          className="-mt-4"
+          className="mt-8 md:-mt-4"
           items={[
             {
               icon: Clock,
@@ -434,18 +461,23 @@ function ModeRow({
           : "border-border bg-space-950/40"
       }`}
     >
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-3">
+      <div className="flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border sm:h-10 sm:w-10"
             style={{ borderColor: `${meta.color}66`, color: meta.color }}
           >
             <Icon className="h-[18px] w-[18px]" />
           </span>
-          <span className="truncate text-foreground">{label}</span>
+          <span className="truncate text-[15px] text-foreground sm:text-[16px]">
+            {label}
+          </span>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <div className="text-right">
+        {/* min-w-0 en vez de un `shrink-0` a secas: en un móvil las cifras
+            deben poder repartirse el ancho con la etiqueta en vez de empujar
+            la fila fuera de la tarjeta. Desde `sm` no encoge, como siempre. */}
+        <div className="flex min-w-0 items-center gap-3 sm:shrink-0">
+          <div className="min-w-0 text-right">
             <div className="font-display" style={{ color: meta.color }}>
               {primary}
               {suffix && (
@@ -512,7 +544,9 @@ function PortSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="min-w-0 flex-1 border-border bg-space-950/60">
+      {/* En móvil ocupa el ancho completo de la columna apilada (`w-full` va en
+          el propio primitivo); desde `sm` vuelve a repartirse la fila. */}
+      <SelectTrigger className="min-w-0 border-border bg-space-950/60 sm:flex-1">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

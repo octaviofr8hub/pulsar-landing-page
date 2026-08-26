@@ -256,7 +256,7 @@ export function Fleet() {
 
       {/* franja de métricas */}
       <Stagger
-        className="mt-10 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-border pt-10 md:grid-cols-4"
+        className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 border-t border-border pt-10 sm:grid-cols-2 md:grid-cols-4"
         gap={0.08}
       >
         {c.stats.map((s, i) => {
@@ -264,13 +264,13 @@ export function Fleet() {
           return (
             <StaggerItem
               key={s.sub}
-              className="flex items-center gap-3"
+              className="flex min-w-0 items-center gap-3"
               distance={16}
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border text-pulse-cyan">
                 <Icon className="h-5 w-5" />
               </span>
-              <div>
+              <div className="min-w-0">
                 <div
                   className="text-foreground"
                   style={{
@@ -317,7 +317,9 @@ function FleetCard({
     <button
       type="button"
       onClick={onSelect}
-      className="group relative aspect-[3/4] overflow-hidden rounded-2xl border text-left transition-colors"
+      // apaisada en móvil (apiladas, tres 3/4 harían la sección interminable);
+      // desde `sm` recupera el retrato de siempre
+      className="group relative aspect-[16/10] overflow-hidden rounded-2xl border text-left transition-colors sm:aspect-[3/4]"
       style={{
         borderColor: selected
           ? "rgba(56,189,248,0.7)"
@@ -437,10 +439,15 @@ function RecRow({
   accent?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2 text-[13px]">
+    // En móvil la etiqueta se queda a la izquierda y el valor cae alineado a la
+    // derecha — envuelve entero en vez de partirse a media palabra. De `md`
+    // para arriba, la fila de una sola línea de siempre.
+    <div className="flex flex-wrap items-center gap-2 text-[13px] md:flex-nowrap">
       <Icon className="h-4 w-4 shrink-0 text-pulse-cyan" />
-      <span className="text-muted-foreground">{label}:</span>
-      <span className={accent ? "text-pulse-blue" : "text-foreground"}>
+      <span className="min-w-0 text-muted-foreground">{label}:</span>
+      <span
+        className={`ml-auto text-right md:ml-0 md:text-left ${accent ? "text-pulse-blue" : "text-foreground"}`}
+      >
         {value}
       </span>
     </div>

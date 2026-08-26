@@ -351,9 +351,10 @@ export function CTA() {
           </Reveal>
         </div>
 
-        {/* franja de métricas */}
+        {/* franja de métricas: en móvil una sola columna — con el disco del
+            icono por delante no queda ancho para que el dato respire */}
         <Stagger
-          className="mt-16 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-border pt-10 md:grid-cols-4"
+          className="mt-16 grid grid-cols-1 gap-x-6 gap-y-8 border-t border-border pt-10 sm:grid-cols-2 md:grid-cols-4"
           gap={0.08}
         >
           {c.stats.map((s, i) => {
@@ -361,13 +362,13 @@ export function CTA() {
             return (
               <StaggerItem
                 key={s.label}
-                className="flex items-start gap-3"
+                className="flex min-w-0 items-start gap-3"
                 distance={16}
               >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border text-pulse-cyan">
                   <Icon className="h-5 w-5" />
                 </span>
-                <div>
+                <div className="min-w-0">
                   <div className="text-[12px] text-muted-foreground">
                     {s.label}
                   </div>

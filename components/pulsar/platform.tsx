@@ -31,7 +31,9 @@ import { BayGame } from "@/components/cargo/bay-game";
 import { Flag } from "@/components/ui/flag";
 import type { CountryCode } from "@/types/network";
 import { GlobeCanvas, buildSingleRoute } from "@/components/globe/globe-canvas";
+import { useIsClient } from "@/components/globe/hooks";
 import type { GlobeHub } from "@/components/globe/types";
+import { useIsMobile } from "@/components/viewport/use-is-mobile";
 import { useLanguage } from "@/components/i18n/use-language";
 import {
   chargeableKg,
@@ -371,6 +373,15 @@ const COPY = {
 export function Platform() {
   const { lang } = useLanguage();
   const c = COPY[lang];
+  const isMobile = useIsMobile();
+  const hydrated = useIsClient();
+  /**
+   * Lo pesado de la sección —el minijuego de la bahía y el globo de misiones—
+   * sólo se monta en escritorio: son lienzos WebGL con su propio bucle y un
+   * mando pensado para ratón y teclado. Se espera además a la hidratación para
+   * que en un teléfono no llegue a existir ni un fotograma.
+   */
+  const showHeavyScenes = hydrated && !isMobile;
   const [origin, setOrigin] = useState("lgb");
   const [dest, setDest] = useState("sin");
   const [urgency, setUrgency] = useState(2);
@@ -486,7 +497,7 @@ export function Platform() {
         {/* cotizador */}
         <Reveal delay={0.05}>
           <div className="rounded-2xl border border-border bg-space-900/60 p-4 backdrop-blur md:p-5">
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-3 md:gap-0">
               <div>
                 <div
                   className="text-foreground"
@@ -505,7 +516,7 @@ export function Platform() {
               <button
                 type="button"
                 onClick={() => setAdvanced((v) => !v)}
-                className="flex items-center gap-2 text-[12px] text-muted-foreground"
+                className="flex shrink-0 items-center gap-2 text-[12px] text-muted-foreground"
               >
                 {c.advanced}
                 <span
@@ -520,16 +531,21 @@ export function Platform() {
 
             <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,264px)]">
               {/* bahía jugable + ficha de dimensiones, como en el mockup:
-                  el bulto a la izquierda y sus cifras en columna a la derecha */}
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_136px]">
-                <BayGame
-                  apogeeKm={quote.profile.apogeeKm}
-                  burnoutSpeedKms={quote.profile.burnoutSpeedKms}
-                  from={quote.from}
-                  to={quote.to}
-                />
-                <div className="flex flex-col gap-1.5">
-                  <div className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground">
+                  el bulto a la izquierda y sus cifras en columna a la derecha.
+                  En móvil no hay bulto jugable, así que la ficha se queda sola
+                  a todo el ancho y se lee como una ficha técnica en dos
+                  columnas. */}
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_136px]">
+                {showHeavyScenes && (
+                  <BayGame
+                    apogeeKm={quote.profile.apogeeKm}
+                    burnoutSpeedKms={quote.profile.burnoutSpeedKms}
+                    from={quote.from}
+                    to={quote.to}
+                  />
+                )}
+                <div className="grid grid-cols-2 gap-1.5 md:flex md:flex-col">
+                  <div className="col-span-2 font-mono text-[10px] tracking-[0.18em] text-muted-foreground">
                     {c.dims.toUpperCase()}
                   </div>
                   {[
@@ -546,7 +562,7 @@ export function Platform() {
                       <span className="text-foreground">{v}</span>
                     </div>
                   ))}
-                  <div className="mt-auto rounded-lg border border-border bg-space-950/40 px-2.5 py-1.5 text-[11px]">
+                  <div className="col-span-2 mt-auto rounded-lg border border-border bg-space-950/40 px-2.5 py-1.5 text-[11px]">
                     <div className="text-muted-foreground">{c.volumetric}</div>
                     <div className="text-foreground">
                       {quote.volumeM3.toFixed(2)} m³ ·{" "}
@@ -672,7 +688,7 @@ export function Platform() {
             <div className="mt-4 border-t border-border pt-3 text-[12px] text-muted-foreground">
               {c.priceLabel}
             </div>
-            <div className="mt-1 flex items-baseline gap-2">
+            <div className="mt-1 flex flex-wrap items-baseline gap-2 md:flex-nowrap">
               <motion.span
                 key={quote.price}
                 initial={{ opacity: 0.4 }}
@@ -759,26 +775,28 @@ export function Platform() {
                   12
                 </span>
               </div>
-              <div className="relative mt-2 h-36 overflow-hidden rounded-lg">
-                <GlobeCanvas
-                  interactive
-                  textured
-                  hubs={MISSION_HUBS}
-                  onSelectHub={() => undefined}
-                  showHubLabels
-                  routes={routes}
-                  autoSpin
-                  spinSpeed={0.05}
-                  cameraDistance={5.4}
-                  minDistance={3.6}
-                  maxDistance={9}
-                  dpr={[1, 1.5]}
-                  detailScale={0.7}
-                  showZoomButtons
-                  showHint
-                  hintLabel={c.dragHint}
-                />
-              </div>
+              {showHeavyScenes && (
+                <div className="relative mt-2 h-36 overflow-hidden rounded-lg">
+                  <GlobeCanvas
+                    interactive
+                    textured
+                    hubs={MISSION_HUBS}
+                    onSelectHub={() => undefined}
+                    showHubLabels
+                    routes={routes}
+                    autoSpin
+                    spinSpeed={0.05}
+                    cameraDistance={5.4}
+                    minDistance={3.6}
+                    maxDistance={9}
+                    dpr={[1, 1.5]}
+                    detailScale={0.7}
+                    showZoomButtons
+                    showHint
+                    hintLabel={c.dragHint}
+                  />
+                </div>
+              )}
               <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
                 {c.legend.map((l, i) => (
                   <span key={l} className="flex items-center gap-1.5">
@@ -940,12 +958,13 @@ function ScoreCard({
           {score.trend}
         </span>
       </div>
-      <div className="mt-2 flex items-baseline gap-2">
+      <div className="mt-2 flex flex-wrap items-baseline gap-2 md:flex-nowrap">
+        {/* La cifra sale del `style` para poder achicarla en móvil: a dos
+            columnas de 150px el par cifra + calificativo no cabe a 1.5rem. */}
         <span
-          className="text-foreground"
+          className="text-[1.25rem] text-foreground md:text-[1.5rem]"
           style={{
             fontFamily: "var(--font-display)",
-            fontSize: "1.5rem",
             fontWeight: 600,
           }}
         >
